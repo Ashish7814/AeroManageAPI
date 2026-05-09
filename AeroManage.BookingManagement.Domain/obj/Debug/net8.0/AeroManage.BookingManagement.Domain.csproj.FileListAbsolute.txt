@@ -1,0 +1,11 @@
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\bin\Debug\net8.0\AeroManage.BookingManagement.Domain.deps.json
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\bin\Debug\net8.0\AeroManage.BookingManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\bin\Debug\net8.0\AeroManage.BookingManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.AssemblyInfoInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.AssemblyInfo.cs
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.csproj.CoreCompileInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\refint\AeroManage.BookingManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\AeroManage.BookingManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Domain\obj\Debug\net8.0\ref\AeroManage.BookingManagement.Domain.dll

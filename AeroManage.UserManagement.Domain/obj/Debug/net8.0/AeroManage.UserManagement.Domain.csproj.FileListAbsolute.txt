@@ -1,0 +1,11 @@
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\bin\Debug\net8.0\AeroManage.UserManagement.Domain.deps.json
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\bin\Debug\net8.0\AeroManage.UserManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\bin\Debug\net8.0\AeroManage.UserManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.AssemblyInfoInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.AssemblyInfo.cs
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.csproj.CoreCompileInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\refint\AeroManage.UserManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\AeroManage.UserManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.UserManagement.Domain\obj\Debug\net8.0\ref\AeroManage.UserManagement.Domain.dll

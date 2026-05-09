@@ -1,0 +1,1929 @@
+-- =============================================
+-- Booking & Reservation Module - Stored Procedures
+-- =============================================
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- SP: Search Flights (Multi-city support)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_SearchFlights
+    @OriginAirportId INT = NULL,
+    @DestinationAirportId INT = NULL,
+    @DepartureDate DATE = NULL,
+    @ReturnDate DATE = NULL,
+    @PassengerCount INT = 1,
+    @SeatClass NVARCHAR(20) = 'Economy',
+    @MaxPrice DECIMAL(10,2) = NULL,
+    @MaxStops INT = NULL,
+    @AirlineId INT = NULL,
+    @PageNumber INT = 1,
+    @PageSize INT = 20
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    WITH FlightResults AS (
+        SELECT 
+            f.FlightId,
+            f.FlightNumber,
+            f.FlightStatus,
+            f.DepartureDateTime,
+            f.ArrivalDateTime,
+            f.DepartureGate,
+            f.ArrivalGate,
+            r.RouteId,
+            r.RouteCode,
+            r.Distance,
+            r.EstimatedDuration,
+            -- Origin
+            oa.AirportId AS OriginAirportId,
+            oa.AirportCode AS OriginCode,
+            oa.AirportName AS OriginName,
+            oa.City AS OriginCity,
+            oa.Country AS OriginCountry,
+            -- Destination
+            da.AirportId AS DestinationAirportId,
+            da.AirportCode AS DestinationCode,
+            da.AirportName AS DestinationName,
+            da.City AS DestinationCity,
+            da.Country AS DestinationCountry,
+            -- Aircraft
+            ac.AircraftId,
+            ac.RegistrationNumber,
+            ac.Model AS AircraftModel,
+            -- Pricing
+            CASE @SeatClass
+                WHEN 'Economy' THEN f.EconomyPrice
+                WHEN 'Business' THEN f.BusinessPrice
+                WHEN 'FirstClass' THEN f.FirstClassPrice
+                ELSE f.EconomyPrice
+            END AS Price,
+            -- Seat Availability
+            (SELECT COUNT(*) FROM Seats s 
+             WHERE s.AircraftId = ac.AircraftId AND s.SeatClass = @SeatClass AND s.IsAvailable = 1
+             AND NOT EXISTS (
+                SELECT 1 FROM SeatReservations sr 
+                WHERE sr.SeatId = s.SeatId AND sr.FlightId = f.FlightId 
+                AND sr.ReservationStatus = 'Confirmed'
+             )) AS AvailableSeats,
+            -- Layovers count
+            (SELECT COUNT(*) FROM RouteLayovers rl WHERE rl.RouteId = r.RouteId) AS Stops
+        FROM Flights f
+        INNER JOIN Routes r ON f.RouteId = r.RouteId
+        INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+        INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+        LEFT JOIN Aircraft ac ON f.AircraftId = ac.AircraftId
+        WHERE f.FlightStatus IN ('Scheduled', 'Boarding')
+            AND (@OriginAirportId IS NULL OR r.OriginAirportId = @OriginAirportId)
+            AND (@DestinationAirportId IS NULL OR r.DestinationAirportId = @DestinationAirportId)
+            AND (@DepartureDate IS NULL OR CAST(f.DepartureDateTime AS DATE) = @DepartureDate)
+    )
+    SELECT *,
+        (SELECT COUNT(*) FROM FlightResults) AS TotalRecords
+    FROM FlightResults
+    WHERE (@MaxPrice IS NULL OR Price <= @MaxPrice)
+        AND (@MaxStops IS NULL OR Stops <= @MaxStops)
+        AND AvailableSeats >= @PassengerCount
+    ORDER BY Price ASC, DepartureDateTime ASC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- =============================================
+-- SP: Generate Booking Reference
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GenerateBookingReference
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Reference NVARCHAR(10);
+    DECLARE @Exists INT = 1;
+    
+    WHILE @Exists = 1
+    BEGIN
+        -- Generate 6-character alphanumeric code
+        SET @Reference = 
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CAST(ABS(CHECKSUM(NEWID())) % 10 AS NVARCHAR) +
+            CAST(ABS(CHECKSUM(NEWID())) % 10 AS NVARCHAR) +
+            CAST(ABS(CHECKSUM(NEWID())) % 10 AS NVARCHAR);
+        
+        -- Check if exists
+        IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingReference = @Reference)
+            SET @Exists = 0;
+    END
+    
+    SELECT @Reference AS BookingReference;
+END
+GO
+
+-- =============================================
+-- SP: Generate PNR
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GeneratePNR
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @PNR NVARCHAR(6);
+    DECLARE @Exists INT = 1;
+    
+    WHILE @Exists = 1
+    BEGIN
+        -- Generate 6-character alphanumeric PNR
+        SET @PNR = 
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CAST(ABS(CHECKSUM(NEWID())) % 10 AS NVARCHAR) +
+            CAST(ABS(CHECKSUM(NEWID())) % 10 AS NVARCHAR) +
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26) +
+            CHAR(65 + ABS(CHECKSUM(NEWID())) % 26);
+        
+        IF NOT EXISTS (SELECT 1 FROM Bookings WHERE PNR = @PNR)
+            SET @Exists = 0;
+    END
+    
+    SELECT @PNR AS PNR;
+END
+GO
+
+-- =============================================
+-- SP: Create Booking
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_CreateBooking
+    @BookingReference NVARCHAR(10),
+    @PNR NVARCHAR(6),
+    @UserId INT = NULL,
+    @TotalAmount DECIMAL(10,2),
+    @Currency NVARCHAR(3) = 'USD',
+    @BookingEmail NVARCHAR(255),
+    @BookingPhone NVARCHAR(20) = NULL,
+    @SpecialRequests NVARCHAR(1000) = NULL,
+    @CreatedBy INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        INSERT INTO Bookings (
+            BookingReference, PNR, UserId, TotalAmount, Currency,
+            BookingEmail, BookingPhone, SpecialRequests, CreatedBy
+        )
+        VALUES (
+            @BookingReference, @PNR, @UserId, @TotalAmount, @Currency,
+            @BookingEmail, @BookingPhone, @SpecialRequests, @CreatedBy
+        );
+        
+        DECLARE @BookingId INT = SCOPE_IDENTITY();
+        
+        -- Audit log
+        INSERT INTO BookingHistory (BookingId, Action, NewValue, ChangedBy)
+        VALUES (@BookingId, 'Created', '{"Status":"Pending"}', @CreatedBy);
+        
+        -- Return created booking
+        SELECT 
+            BookingId, BookingReference, PNR, UserId, BookingStatus,
+            TotalAmount, Currency, PaymentStatus, BookingDate,
+            BookingEmail, BookingPhone
+        FROM Bookings
+        WHERE BookingId = @BookingId;
+        
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- SP: Add Passenger to Booking
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_AddPassengerToBooking
+    @BookingId INT,
+    @PassengerId INT,
+    @PassengerType NVARCHAR(20),
+    @SeatClass NVARCHAR(20),
+    @MealPreference NVARCHAR(50) = NULL,
+    @SpecialAssistance NVARCHAR(500) = NULL,
+    @ExtraBaggage INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO BookingPassengers (
+        BookingId, PassengerId, PassengerType, SeatClass,
+        MealPreference, SpecialAssistance, ExtraBaggage
+    )
+    VALUES (
+        @BookingId, @PassengerId, @PassengerType, @SeatClass,
+        @MealPreference, @SpecialAssistance, @ExtraBaggage
+    );
+    
+    SELECT 
+        BookingPassengerId, BookingId, PassengerId,
+        PassengerType, SeatClass, MealPreference
+    FROM BookingPassengers
+    WHERE BookingPassengerId = SCOPE_IDENTITY();
+END
+GO
+
+-- =============================================
+-- SP: Reserve Seat
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ReserveSeat
+    @FlightId INT,
+    @SeatId INT,
+    @BookingPassengerId INT,
+    @HoldMinutes INT = 15
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- Check if seat is available
+        IF EXISTS (
+            SELECT 1 FROM SeatReservations 
+            WHERE FlightId = @FlightId AND SeatId = @SeatId 
+            AND ReservationStatus = 'Confirmed'
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            THROW 50001, 'Seat already reserved', 1;
+        END
+        
+        -- Reserve seat
+        INSERT INTO SeatReservations (FlightId, SeatId, BookingPassengerId, ReservationStatus, ExpiresAt)
+        VALUES (@FlightId, @SeatId, @BookingPassengerId, 'Reserved', DATEADD(MINUTE, @HoldMinutes, GETDATE()));
+        
+        -- Update seat number in booking
+        UPDATE BookingPassengers
+        SET SeatNumber = (SELECT SeatNumber FROM Seats WHERE SeatId = @SeatId)
+        WHERE BookingPassengerId = @BookingPassengerId;
+        
+        COMMIT TRANSACTION;
+        
+        SELECT ReservationId, FlightId, SeatId, ReservationStatus, ExpiresAt
+        FROM SeatReservations
+        WHERE ReservationId = SCOPE_IDENTITY();
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- SP: Confirm Booking (After Payment)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ConfirmBooking
+    @BookingId INT,
+    @PaymentIntentId NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- Update booking status
+        UPDATE Bookings
+        SET BookingStatus = 'Confirmed',
+            PaymentStatus = 'Paid',
+            PaymentIntentId = @PaymentIntentId,
+            UpdatedAt = GETDATE()
+        WHERE BookingId = @BookingId;
+        
+        -- Confirm all seat reservations
+        UPDATE sr
+        SET ReservationStatus = 'Confirmed',
+            ExpiresAt = NULL
+        FROM SeatReservations sr
+        INNER JOIN BookingPassengers bp ON sr.BookingPassengerId = bp.BookingPassengerId
+        WHERE bp.BookingId = @BookingId;
+        
+        -- Audit log
+        INSERT INTO BookingHistory (BookingId, Action, NewValue)
+        VALUES (@BookingId, 'Confirmed', '{"Status":"Confirmed","Payment":"' + @PaymentIntentId + '"}');
+        
+        COMMIT TRANSACTION;
+        
+        -- Return booking details
+        SELECT 
+            b.BookingId, b.BookingReference, b.PNR, b.BookingStatus,
+            b.PaymentStatus, b.TotalAmount, b.Currency, b.BookingEmail
+        FROM Bookings b
+        WHERE b.BookingId = @BookingId;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- SP: Get Booking Details
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetBookingDetails
+    @BookingId INT = NULL,
+    @BookingReference NVARCHAR(10) = NULL,
+    @PNR NVARCHAR(6) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Booking details
+    SELECT 
+        b.BookingId, b.BookingReference, b.PNR, b.UserId, b.BookingStatus,
+        b.TotalAmount, b.Currency, b.PaymentStatus, b.PaymentMethod,
+        b.BookingDate, b.BookingEmail, b.BookingPhone, b.SpecialRequests
+    FROM Bookings b
+    WHERE (@BookingId IS NOT NULL AND b.BookingId = @BookingId)
+       OR (@BookingReference IS NOT NULL AND b.BookingReference = @BookingReference)
+       OR (@PNR IS NOT NULL AND b.PNR = @PNR);
+    
+    -- Flights
+    SELECT 
+        bf.BookingFlightId, bf.FlightSegment,
+        f.FlightId, f.FlightNumber, f.DepartureDateTime, f.ArrivalDateTime,
+        r.RouteCode, oa.AirportCode AS OriginCode, da.AirportCode AS DestinationCode
+    FROM BookingFlights bf
+    INNER JOIN Flights f ON bf.FlightId = f.FlightId
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE bf.BookingId = (
+        SELECT BookingId FROM Bookings 
+        WHERE (@BookingId IS NOT NULL AND BookingId = @BookingId)
+           OR (@BookingReference IS NOT NULL AND BookingReference = @BookingReference)
+           OR (@PNR IS NOT NULL AND PNR = @PNR)
+    );
+    
+    -- Passengers
+    SELECT 
+        bp.BookingPassengerId, bp.PassengerType, bp.SeatClass,
+        bp.SeatNumber, bp.MealPreference, bp.TicketNumber,
+        p.PassengerId, p.FirstName, p.LastName, p.Email, p.Phone
+    FROM BookingPassengers bp
+    INNER JOIN Passengers p ON bp.PassengerId = p.PassengerId
+    WHERE bp.BookingId = (
+        SELECT BookingId FROM Bookings 
+        WHERE (@BookingId IS NOT NULL AND BookingId = @BookingId)
+           OR (@BookingReference IS NOT NULL AND BookingReference = @BookingReference)
+           OR (@PNR IS NOT NULL AND PNR = @PNR)
+    );
+END
+GO
+
+-- =============================================
+-- SP: Cancel Booking
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_CancelBooking
+    @BookingId INT,
+    @CancelledBy INT,
+    @RefundAmount DECIMAL(10,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- Check if already cancelled
+        IF EXISTS (SELECT 1 FROM Bookings WHERE BookingId = @BookingId AND BookingStatus = 'Cancelled')
+        BEGIN
+            ROLLBACK TRANSACTION;
+            THROW 50002, 'Booking already cancelled', 1;
+        END
+        
+        -- Update booking
+        UPDATE Bookings
+        SET BookingStatus = 'Cancelled',
+            UpdatedAt = GETDATE()
+        WHERE BookingId = @BookingId;
+        
+        -- Release seats
+        UPDATE SeatReservations
+        SET ReservationStatus = 'Cancelled'
+        WHERE BookingPassengerId IN (
+            SELECT BookingPassengerId FROM BookingPassengers WHERE BookingId = @BookingId
+        );
+        
+        -- Audit log
+        INSERT INTO BookingHistory (BookingId, Action, NewValue, ChangedBy)
+        VALUES (@BookingId, 'Cancelled', '{"RefundAmount":"' + CAST(@RefundAmount AS NVARCHAR) + '"}', @CancelledBy);
+        
+        COMMIT TRANSACTION;
+        
+        SELECT BookingId, BookingReference, BookingStatus
+        FROM Bookings
+        WHERE BookingId = @BookingId;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- SP: Get User Bookings
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetUserBookings
+    @UserId INT,
+    @PageNumber INT = 1,
+    @PageSize INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT 
+        b.BookingId, b.BookingReference, b.PNR, b.BookingStatus,
+        b.TotalAmount, b.Currency, b.BookingDate,
+        COUNT(DISTINCT bp.BookingPassengerId) AS PassengerCount,
+        COUNT(DISTINCT bf.FlightId) AS FlightCount,
+        (SELECT COUNT(*) FROM Bookings WHERE UserId = @UserId) AS TotalRecords
+    FROM Bookings b
+    LEFT JOIN BookingPassengers bp ON b.BookingId = bp.BookingId
+    LEFT JOIN BookingFlights bf ON b.BookingId = bf.BookingId
+    WHERE b.UserId = @UserId AND b.IsDeleted = 0
+    GROUP BY b.BookingId, b.BookingReference, b.PNR, b.BookingStatus,
+             b.TotalAmount, b.Currency, b.BookingDate
+    ORDER BY b.BookingDate DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- =============================================
+-- SP: Validate Promo Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ValidatePromoCode
+    @Code NVARCHAR(50),
+    @BookingAmount DECIMAL(10,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        PromoCodeId, Code, Description, DiscountType,
+        DiscountValue, MinimumAmount, MaximumDiscount,
+        ValidFrom, ValidTo, UsageLimit, UsedCount,
+        CASE 
+            WHEN IsActive = 0 THEN 'Promo code is inactive'
+            WHEN GETDATE() < ValidFrom THEN 'Promo code not yet valid'
+            WHEN GETDATE() > ValidTo THEN 'Promo code has expired'
+            WHEN @BookingAmount < MinimumAmount THEN 'Minimum booking amount not met'
+            WHEN UsageLimit > 0 AND UsedCount >= UsageLimit THEN 'Promo code usage limit reached'
+            ELSE 'Valid'
+        END AS ValidationStatus,
+        CASE 
+            WHEN DiscountType = 'Percentage' THEN 
+                CASE 
+                    WHEN MaximumDiscount IS NOT NULL AND (@BookingAmount * DiscountValue / 100) > MaximumDiscount 
+                    THEN MaximumDiscount
+                    ELSE @BookingAmount * DiscountValue / 100
+                END
+            WHEN DiscountType = 'Fixed' THEN DiscountValue
+            ELSE 0
+        END AS CalculatedDiscount
+    FROM PromoCodes
+    WHERE Code = @Code;
+END
+GO
+
+PRINT 'Booking stored procedures created successfully!';
+GO
+
+
+
+
+
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PromoCodes')
+BEGIN
+    CREATE TABLE PromoCodes (
+        PromoCodeId INT IDENTITY(1,1) PRIMARY KEY,
+        Code NVARCHAR(50) UNIQUE NOT NULL,
+        DiscountType NVARCHAR(20) NOT NULL, -- Percentage, Fixed
+        DiscountValue DECIMAL(10, 2) NOT NULL,
+        MinimumAmount DECIMAL(10, 2) NULL,
+        MaximumDiscount DECIMAL(10, 2) NULL,
+        UsageLimit INT NULL,
+        UsageCount INT DEFAULT 0,
+        ValidFrom DATETIME NOT NULL,
+        ValidUntil DATETIME NOT NULL,
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT CHK_PromoCodes_DiscountType CHECK (DiscountType IN ('Percentage', 'Fixed')),
+        CONSTRAINT CHK_PromoCodes_DiscountValue CHECK (DiscountValue > 0)
+    );
+END
+GO
+
+-- =============================================
+-- Create Indexes
+-- =============================================
+CREATE NONCLUSTERED INDEX IX_PromoCodes_Code ON PromoCodes(Code);
+CREATE NONCLUSTERED INDEX IX_PromoCodes_Active ON PromoCodes(IsActive);
+CREATE NONCLUSTERED INDEX IX_PromoCodes_ValidDates ON PromoCodes(ValidFrom, ValidUntil);
+GO
+
+-- =============================================
+-- SP: Get Promo Code by Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetPromoCodeByCode
+    @Code NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        PromoCodeId,
+        Code,
+        DiscountType,
+        DiscountValue,
+        MinimumAmount,
+        MaximumDiscount,
+        UsageLimit,
+        UsageCount,
+        ValidFrom,
+        ValidUntil,
+        IsActive,
+        CreatedAt
+    FROM PromoCodes
+    WHERE Code = @Code;
+END
+GO
+
+-- =============================================
+-- SP: Validate Promo Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ValidatePromoCode
+    @Code NVARCHAR(50),
+    @BookingAmount DECIMAL(10, 2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @PromoCodeId INT;
+    DECLARE @DiscountType NVARCHAR(20);
+    DECLARE @DiscountValue DECIMAL(10, 2);
+    DECLARE @MinimumAmount DECIMAL(10, 2);
+    DECLARE @MaximumDiscount DECIMAL(10, 2);
+    DECLARE @UsageLimit INT;
+    DECLARE @UsageCount INT;
+    DECLARE @ValidFrom DATETIME;
+    DECLARE @ValidUntil DATETIME;
+    DECLARE @IsActive BIT;
+    DECLARE @ValidationStatus NVARCHAR(100);
+    DECLARE @CalculatedDiscount DECIMAL(10, 2) = 0;
+    
+    -- Get promo code details
+    SELECT 
+        @PromoCodeId = PromoCodeId,
+        @DiscountType = DiscountType,
+        @DiscountValue = DiscountValue,
+        @MinimumAmount = MinimumAmount,
+        @MaximumDiscount = MaximumDiscount,
+        @UsageLimit = UsageLimit,
+        @UsageCount = UsageCount,
+        @ValidFrom = ValidFrom,
+        @ValidUntil = ValidUntil,
+        @IsActive = IsActive
+    FROM PromoCodes
+    WHERE Code = @Code;
+    
+    -- Check if promo code exists
+    IF @PromoCodeId IS NULL
+    BEGIN
+        SET @ValidationStatus = 'Invalid promo code';
+    END
+    -- Check if active
+    ELSE IF @IsActive = 0
+    BEGIN
+        SET @ValidationStatus = 'Promo code is inactive';
+    END
+    -- Check if within valid date range
+    ELSE IF GETDATE() < @ValidFrom
+    BEGIN
+        SET @ValidationStatus = 'Promo code not yet valid';
+    END
+    ELSE IF GETDATE() > @ValidUntil
+    BEGIN
+        SET @ValidationStatus = 'Promo code has expired';
+    END
+    -- Check usage limit
+    ELSE IF @UsageLimit IS NOT NULL AND @UsageCount >= @UsageLimit
+    BEGIN
+        SET @ValidationStatus = 'Promo code usage limit reached';
+    END
+    -- Check minimum amount
+    ELSE IF @MinimumAmount IS NOT NULL AND @BookingAmount < @MinimumAmount
+    BEGIN
+        SET @ValidationStatus = 'Booking amount does not meet minimum requirement of $' + CAST(@MinimumAmount AS NVARCHAR);
+    END
+    ELSE
+    BEGIN
+        SET @ValidationStatus = 'Valid';
+        
+        -- Calculate discount
+        IF @DiscountType = 'Percentage'
+        BEGIN
+            SET @CalculatedDiscount = @BookingAmount * (@DiscountValue / 100);
+            
+            -- Apply maximum discount if specified
+            IF @MaximumDiscount IS NOT NULL AND @CalculatedDiscount > @MaximumDiscount
+                SET @CalculatedDiscount = @MaximumDiscount;
+        END
+        ELSE IF @DiscountType = 'Fixed'
+        BEGIN
+            SET @CalculatedDiscount = @DiscountValue;
+            
+            -- Don't exceed booking amount
+            IF @CalculatedDiscount > @BookingAmount
+                SET @CalculatedDiscount = @BookingAmount;
+        END
+    END
+    
+    -- Return result
+    SELECT 
+        PromoCodeId,
+        Code,
+        DiscountType,
+        DiscountValue,
+        MinimumAmount,
+        MaximumDiscount,
+        UsageLimit,
+        UsageCount,
+        ValidFrom,
+        ValidUntil,
+        IsActive,
+        @ValidationStatus AS ValidationStatus,
+        @CalculatedDiscount AS CalculatedDiscount
+    FROM PromoCodes
+    WHERE Code = @Code;
+END
+GO
+
+-- =============================================
+-- SP: Increment Promo Code Usage
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_IncrementPromoCodeUsage
+    @PromoCodeId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE PromoCodes
+    SET UsageCount = UsageCount + 1
+    WHERE PromoCodeId = @PromoCodeId;
+    
+    SELECT 1 AS Success;
+END
+GO
+
+-- =============================================
+-- SP: Get Active Promo Codes
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetActivePromoCodes
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        PromoCodeId,
+        Code,
+        DiscountType,
+        DiscountValue,
+        MinimumAmount,
+        MaximumDiscount,
+        UsageLimit,
+        UsageCount,
+        ValidFrom,
+        ValidUntil,
+        IsActive,
+        CreatedAt
+    FROM PromoCodes
+    WHERE IsActive = 1
+        AND GETDATE() BETWEEN ValidFrom AND ValidUntil
+        AND (UsageLimit IS NULL OR UsageCount < UsageLimit)
+    ORDER BY CreatedAt DESC;
+END
+GO
+
+-- =============================================
+-- SP: Create Promo Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_CreatePromoCode
+    @Code NVARCHAR(50),
+    @DiscountType NVARCHAR(20),
+    @DiscountValue DECIMAL(10, 2),
+    @MinimumAmount DECIMAL(10, 2) = NULL,
+    @MaximumDiscount DECIMAL(10, 2) = NULL,
+    @UsageLimit INT = NULL,
+    @ValidFrom DATETIME,
+    @ValidUntil DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Check if code already exists
+    IF EXISTS (SELECT 1 FROM PromoCodes WHERE Code = @Code)
+    BEGIN
+        RAISERROR('Promo code already exists', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO PromoCodes (
+        Code, DiscountType, DiscountValue, MinimumAmount, MaximumDiscount,
+        UsageLimit, ValidFrom, ValidUntil, IsActive
+    )
+    VALUES (
+        @Code, @DiscountType, @DiscountValue, @MinimumAmount, @MaximumDiscount,
+        @UsageLimit, @ValidFrom, @ValidUntil, 1
+    );
+    
+    SELECT SCOPE_IDENTITY() AS PromoCodeId;
+END
+GO
+
+-- =============================================
+-- SP: Update Promo Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdatePromoCode
+    @PromoCodeId INT,
+    @DiscountType NVARCHAR(20) = NULL,
+    @DiscountValue DECIMAL(10, 2) = NULL,
+    @MinimumAmount DECIMAL(10, 2) = NULL,
+    @MaximumDiscount DECIMAL(10, 2) = NULL,
+    @UsageLimit INT = NULL,
+    @ValidFrom DATETIME = NULL,
+    @ValidUntil DATETIME = NULL,
+    @IsActive BIT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE PromoCodes
+    SET DiscountType = ISNULL(@DiscountType, DiscountType),
+        DiscountValue = ISNULL(@DiscountValue, DiscountValue),
+        MinimumAmount = ISNULL(@MinimumAmount, MinimumAmount),
+        MaximumDiscount = ISNULL(@MaximumDiscount, MaximumDiscount),
+        UsageLimit = ISNULL(@UsageLimit, UsageLimit),
+        ValidFrom = ISNULL(@ValidFrom, ValidFrom),
+        ValidUntil = ISNULL(@ValidUntil, ValidUntil),
+        IsActive = ISNULL(@IsActive, IsActive)
+    WHERE PromoCodeId = @PromoCodeId;
+    
+    SELECT 1 AS Success;
+END
+GO
+
+-- =============================================
+-- SP: Deactivate Promo Code
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_DeactivatePromoCode
+    @PromoCodeId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE PromoCodes
+    SET IsActive = 0
+    WHERE PromoCodeId = @PromoCodeId;
+    
+    SELECT 1 AS Success;
+END
+GO
+
+-- =============================================
+-- Sample Promo Codes
+-- =============================================
+IF NOT EXISTS (SELECT 1 FROM PromoCodes WHERE Code = 'WELCOME10')
+BEGIN
+    INSERT INTO PromoCodes (Code, DiscountType, DiscountValue, MinimumAmount, MaximumDiscount, UsageLimit, ValidFrom, ValidUntil, IsActive)
+    VALUES ('WELCOME10', 'Percentage', 10, 100, 50, 100, GETDATE(), DATEADD(MONTH, 3, GETDATE()), 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM PromoCodes WHERE Code = 'SUMMER25')
+BEGIN
+    INSERT INTO PromoCodes (Code, DiscountType, DiscountValue, MinimumAmount, MaximumDiscount, UsageLimit, ValidFrom, ValidUntil, IsActive)
+    VALUES ('SUMMER25', 'Percentage', 25, 200, 100, 50, GETDATE(), DATEADD(MONTH, 6, GETDATE()), 1);
+END
+
+IF NOT EXISTS (SELECT 1 FROM PromoCodes WHERE Code = 'SAVE50')
+BEGIN
+    INSERT INTO PromoCodes (Code, DiscountType, DiscountValue, MinimumAmount, MaximumDiscount, UsageLimit, ValidFrom, ValidUntil, IsActive)
+    VALUES ('SAVE50', 'Fixed', 50, 300, NULL, NULL, GETDATE(), DATEADD(YEAR, 1, GETDATE()), 1);
+END
+
+GO
+
+PRINT 'Promo code module created successfully!';
+GO
+
+
+
+
+GO
+
+-- =============================================
+-- SP: Get Calendar Fares (Enhanced)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetCalendarFares
+    @OriginAirportId INT,
+    @DestinationAirportId INT,
+    @StartDate DATE,
+    @EndDate DATE,
+    @SeatClass NVARCHAR(20) = 'Economy'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    WITH DateRange AS (
+        SELECT @StartDate AS FlightDate
+        UNION ALL
+        SELECT DATEADD(DAY, 1, FlightDate)
+        FROM DateRange
+        WHERE FlightDate < @EndDate
+    ),
+    FlightFares AS (
+        SELECT 
+            CAST(f.DepartureDateTime AS DATE) AS FlightDate,
+            MIN(CASE @SeatClass
+                WHEN 'Economy' THEN f.EconomyPrice
+                WHEN 'Business' THEN f.BusinessPrice
+                WHEN 'FirstClass' THEN f.FirstClassPrice
+                ELSE f.EconomyPrice
+            END) AS MinPrice,
+            COUNT(*) AS AvailableFlights
+        FROM Flights f
+        INNER JOIN Routes r ON f.RouteId = r.RouteId
+        WHERE r.OriginAirportId = @OriginAirportId
+            AND r.DestinationAirportId = @DestinationAirportId
+            AND f.FlightStatus IN ('Scheduled', 'Boarding')
+            AND CAST(f.DepartureDateTime AS DATE) BETWEEN @StartDate AND @EndDate
+        GROUP BY CAST(f.DepartureDateTime AS DATE)
+    )
+    SELECT 
+        dr.FlightDate AS Date,
+        ISNULL(ff.MinPrice, 0) AS MinPrice,
+        ISNULL(ff.AvailableFlights, 0) AS AvailableFlights,
+        CASE WHEN ff.MinPrice IS NOT NULL THEN 1 ELSE 0 END AS IsAvailable
+    FROM DateRange dr
+    LEFT JOIN FlightFares ff ON dr.FlightDate = ff.FlightDate
+    ORDER BY dr.FlightDate
+    OPTION (MAXRECURSION 365);
+END
+GO
+
+-- =============================================
+-- SP: Get Flight Details (Enhanced)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetFlightDetails
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Flight details
+    SELECT 
+        f.FlightId,
+        f.FlightNumber,
+        f.FlightStatus,
+        f.DepartureDateTime,
+        f.ArrivalDateTime,
+        f.DepartureGate,
+        f.ArrivalGate,
+        f.EconomyPrice,
+        f.BusinessPrice,
+        f.FirstClassPrice,
+        -- Route
+        r.RouteId,
+        r.RouteCode,
+        r.Distance,
+        r.EstimatedDuration,
+        -- Origin Airport
+        oa.AirportId AS OriginAirportId,
+        oa.AirportCode AS OriginCode,
+        oa.AirportName AS OriginName,
+        oa.City AS OriginCity,
+        oa.Country AS OriginCountry,
+        -- Destination Airport
+        da.AirportId AS DestinationAirportId,
+        da.AirportCode AS DestinationCode,
+        da.AirportName AS DestinationName,
+        da.City AS DestinationCity,
+        da.Country AS DestinationCountry,
+        -- Aircraft
+        ac.AircraftId,
+        ac.Model AS AircraftModel,
+        ac.Manufacturer,
+        ac.TotalSeats
+    FROM Flights f
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    LEFT JOIN Aircraft ac ON f.AircraftId = ac.AircraftId
+    WHERE f.FlightId = @FlightId;
+    
+    -- Layovers (if any)
+    SELECT 
+        rl.LayoverId,
+        rl.LayoverSequence,
+        rl.MinimumLayoverMinutes,
+        rl.MaximumLayoverMinutes,
+        a.AirportId,
+        a.AirportCode,
+        a.AirportName,
+        a.City,
+        a.Country
+    FROM RouteLayovers rl
+    INNER JOIN Airports a ON rl.AirportId = a.AirportId
+    WHERE rl.RouteId = (SELECT RouteId FROM Flights WHERE FlightId = @FlightId)
+    ORDER BY rl.LayoverSequence;
+END
+GO
+
+-- =============================================
+-- SP: Get Seat Availability
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetSeatAvailability
+    @FlightId INT,
+    @SeatClass NVARCHAR(20) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @AircraftId INT = (SELECT AircraftId FROM Flights WHERE FlightId = @FlightId);
+    
+    SELECT 
+        SeatClass,
+        COUNT(*) AS TotalSeats,
+        SUM(CASE WHEN s.IsAvailable = 1 
+            AND NOT EXISTS (
+                SELECT 1 FROM SeatReservations sr 
+                WHERE sr.SeatId = s.SeatId 
+                AND sr.FlightId = @FlightId 
+                AND sr.ReservationStatus IN ('Reserved', 'Confirmed')
+            ) THEN 1 ELSE 0 END) AS AvailableSeats
+    FROM Seats s
+    WHERE s.AircraftId = @AircraftId
+        AND (@SeatClass IS NULL OR s.SeatClass = @SeatClass)
+    GROUP BY s.SeatClass;
+END
+GO
+
+-- =============================================
+-- SP: Get Active Airlines
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetActiveAirlines
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        AirlineId,
+        AirlineCode,
+        AirlineName,
+        Country,
+        LogoUrl
+    FROM Airlines
+    WHERE IsActive = 1
+    ORDER BY AirlineName;
+END
+GO
+
+-- =============================================
+-- SP: Get Booking Summary (Enhanced)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetBookingSummary
+    @BookingId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Booking details
+    SELECT 
+        b.BookingId,
+        b.BookingReference,
+        b.PNR,
+        b.BookingStatus,
+        b.TotalAmount,
+        b.Currency,
+        b.PaymentStatus,
+        b.BookingDate,
+        b.BookingEmail,
+        b.BookingPhone
+    FROM Bookings b
+    WHERE b.BookingId = @BookingId;
+    
+    -- Flights
+    SELECT 
+        bf.FlightId,
+        f.FlightNumber,
+        f.DepartureDateTime,
+        f.ArrivalDateTime,
+        oa.AirportCode AS OriginCode,
+        da.AirportCode AS DestinationCode,
+        f.FlightStatus
+    FROM BookingFlights bf
+    INNER JOIN Flights f ON bf.FlightId = f.FlightId
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE bf.BookingId = @BookingId;
+    
+    -- Passengers
+    SELECT 
+        bp.BookingPassengerId,
+        p.FirstName,
+        p.LastName,
+        bp.PassengerType,
+        bp.SeatClass,
+        bp.SeatNumber,
+        bp.MealPreference,
+        bp.SpecialAssistance,
+        bp.ExtraBaggage
+    FROM BookingPassengers bp
+    INNER JOIN Passengers p ON bp.PassengerId = p.PassengerId
+    WHERE bp.BookingId = @BookingId;
+    
+    -- Pricing
+    SELECT 
+        BasePrice,
+        TaxAmount,
+        ServiceFee,
+        BaggageFee,
+        SeatSelectionFee,
+        InsuranceFee,
+        DiscountAmount,
+        PromoCode,
+        TotalAmount
+    FROM BookingPricing
+    WHERE BookingId = @BookingId;
+END
+GO
+
+-- =============================================
+-- SP: Generate Boarding Pass
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GenerateBoardingPass
+    @BookingPassengerId INT,
+    @Gate NVARCHAR(10),
+    @BoardingTime DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @BoardingPassNumber NVARCHAR(20) = 
+        'BP' + CAST(@BookingPassengerId AS NVARCHAR) + CAST(ABS(CHECKSUM(NEWID())) % 1000 AS NVARCHAR);
+    
+    -- Generate QR code data
+    DECLARE @QRCode NVARCHAR(MAX) = 
+        (SELECT PNR FROM Bookings b 
+         INNER JOIN BookingPassengers bp ON b.BookingId = bp.BookingId 
+         WHERE bp.BookingPassengerId = @BookingPassengerId) + '|' +
+        (SELECT p.FirstName + ' ' + p.LastName FROM Passengers p 
+         INNER JOIN BookingPassengers bp ON p.PassengerId = bp.PassengerId 
+         WHERE bp.BookingPassengerId = @BookingPassengerId);
+    
+    INSERT INTO BoardingPasses (
+        BookingPassengerId, BoardingPassNumber, Gate, BoardingTime, QRCode
+    )
+    VALUES (
+        @BookingPassengerId, @BoardingPassNumber, @Gate, @BoardingTime, @QRCode
+    );
+    
+    SELECT 
+        SCOPE_IDENTITY() AS BoardingPassId,
+        @BoardingPassNumber AS BoardingPassNumber,
+        @QRCode AS QRCode;
+END
+GO
+
+-- =============================================
+-- SP: Log Email Notification
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_LogEmailNotification
+    @BookingId INT,
+    @EmailType NVARCHAR(50),
+    @RecipientEmail NVARCHAR(255),
+    @Subject NVARCHAR(500),
+    @Status NVARCHAR(50) = 'Pending'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO EmailNotificationLogs (
+        BookingId, EmailType, RecipientEmail, Subject, Status
+    )
+    VALUES (
+        @BookingId, @EmailType, @RecipientEmail, @Subject, @Status
+    );
+    
+    SELECT SCOPE_IDENTITY() AS NotificationId;
+END
+GO
+
+-- =============================================
+-- SP: Update Email Status
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdateEmailStatus
+    @NotificationId INT,
+    @Status NVARCHAR(50),
+    @ErrorMessage NVARCHAR(MAX) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE EmailNotificationLogs
+    SET Status = @Status,
+        ErrorMessage = @ErrorMessage,
+        DeliveredAt = CASE WHEN @Status = 'Delivered' THEN GETDATE() ELSE DeliveredAt END
+    WHERE NotificationId = @NotificationId;
+END
+GO
+
+PRINT 'All missing stored procedures created successfully!';
+GO
+
+
+
+
+
+
+
+GO
+
+-- =============================================
+-- Table: BoardingPasses (if not exists)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BoardingPasses')
+BEGIN
+    CREATE TABLE BoardingPasses (
+        BoardingPassId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingPassengerId INT NOT NULL,
+        BoardingPassNumber NVARCHAR(20) UNIQUE NOT NULL,
+        Gate NVARCHAR(10),
+        BoardingTime DATETIME,
+        BoardingGroup NVARCHAR(10), -- A, B, C, D
+        BoardingZone INT,
+        QRCode NVARCHAR(MAX),
+        Barcode NVARCHAR(100),
+        IsUsed BIT DEFAULT 0,
+        ScannedAt DATETIME,
+        ScannedBy NVARCHAR(100),
+        GeneratedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_BoardingPasses_BookingPassengers FOREIGN KEY (BookingPassengerId) 
+            REFERENCES BookingPassengers(BookingPassengerId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Create Indexes
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BoardingPasses_BookingPassenger')
+    CREATE NONCLUSTERED INDEX IX_BoardingPasses_BookingPassenger ON BoardingPasses(BookingPassengerId);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BoardingPasses_Number')
+    CREATE NONCLUSTERED INDEX IX_BoardingPasses_Number ON BoardingPasses(BoardingPassNumber);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BoardingPasses_IsUsed')
+    CREATE NONCLUSTERED INDEX IX_BoardingPasses_IsUsed ON BoardingPasses(IsUsed);
+GO
+
+-- =============================================
+-- SP: Generate Boarding Pass
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GenerateBoardingPass
+    @BookingPassengerId INT,
+    @Gate NVARCHAR(10),
+    @BoardingTime DATETIME,
+    @BoardingGroup NVARCHAR(10) = NULL,
+    @BoardingZone INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Check if boarding pass already exists
+    IF EXISTS (SELECT 1 FROM BoardingPasses WHERE BookingPassengerId = @BookingPassengerId)
+    BEGIN
+        -- Return existing boarding pass
+        SELECT 
+            BoardingPassId,
+            BoardingPassNumber,
+            QRCode
+        FROM BoardingPasses
+        WHERE BookingPassengerId = @BookingPassengerId;
+        RETURN;
+    END
+    
+    DECLARE @BoardingPassNumber NVARCHAR(20) = 
+        'BP' + CAST(@BookingPassengerId AS NVARCHAR) + CAST(ABS(CHECKSUM(NEWID())) % 1000 AS NVARCHAR);
+    
+    -- Generate QR code data (PNR|Passenger|Flight|Seat)
+    DECLARE @QRCode NVARCHAR(MAX);
+    
+    SELECT @QRCode = 
+        b.PNR + '|' +
+        p.FirstName + ' ' + p.LastName + '|' +
+        ISNULL(f.FlightNumber, 'TBA') + '|' +
+        ISNULL(bp.SeatNumber, 'TBA')
+    FROM BookingPassengers bp
+    INNER JOIN Passengers p ON bp.PassengerId = p.PassengerId
+    INNER JOIN Bookings b ON bp.BookingId = b.BookingId
+    LEFT JOIN BookingFlights bf ON bf.BookingId = b.BookingId
+    LEFT JOIN Flights f ON bf.FlightId = f.FlightId
+    WHERE bp.BookingPassengerId = @BookingPassengerId;
+    
+    -- Determine boarding group if not provided
+    IF @BoardingGroup IS NULL
+    BEGIN
+        DECLARE @SeatClass NVARCHAR(20);
+        SELECT @SeatClass = SeatClass FROM BookingPassengers WHERE BookingPassengerId = @BookingPassengerId;
+        
+        SET @BoardingGroup = CASE @SeatClass
+            WHEN 'FirstClass' THEN 'A'
+            WHEN 'Business' THEN 'B'
+            WHEN 'Economy' THEN 'C'
+            ELSE 'D'
+        END;
+        
+        SET @BoardingZone = CASE @SeatClass
+            WHEN 'FirstClass' THEN 1
+            WHEN 'Business' THEN 2
+            WHEN 'Economy' THEN 3
+            ELSE 4
+        END;
+    END
+    
+    -- Insert boarding pass
+    INSERT INTO BoardingPasses (
+        BookingPassengerId, 
+        BoardingPassNumber, 
+        Gate, 
+        BoardingTime,
+        BoardingGroup,
+        BoardingZone,
+        QRCode
+    )
+    VALUES (
+        @BookingPassengerId, 
+        @BoardingPassNumber, 
+        @Gate, 
+        @BoardingTime,
+        @BoardingGroup,
+        @BoardingZone,
+        @QRCode
+    );
+    
+    SELECT 
+        SCOPE_IDENTITY() AS BoardingPassId,
+        @BoardingPassNumber AS BoardingPassNumber,
+        @QRCode AS QRCode,
+        @BoardingGroup AS BoardingGroup,
+        @BoardingZone AS BoardingZone;
+END
+GO
+
+-- =============================================
+-- SP: Get Boarding Pass
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetBoardingPass
+    @BoardingPassId INT = NULL,
+    @BoardingPassNumber NVARCHAR(20) = NULL,
+    @BookingPassengerId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        bp.BoardingPassId,
+        bp.BoardingPassNumber,
+        bp.Gate,
+        bp.BoardingTime,
+        bp.BoardingGroup,
+        bp.BoardingZone,
+        bp.QRCode,
+        bp.Barcode,
+        bp.IsUsed,
+        bp.ScannedAt,
+        bp.GeneratedAt,
+        -- Passenger info
+        p.FirstName,
+        p.LastName,
+        p.Email,
+        -- Booking info
+        b.BookingReference,
+        b.PNR,
+        bkp.SeatNumber,
+        bkp.SeatClass,
+        -- Flight info
+        f.FlightNumber,
+        f.DepartureDateTime,
+        oa.AirportCode AS OriginCode,
+        da.AirportCode AS DestinationCode
+    FROM BoardingPasses bp
+    INNER JOIN BookingPassengers bkp ON bp.BookingPassengerId = bkp.BookingPassengerId
+    INNER JOIN Passengers p ON bkp.PassengerId = p.PassengerId
+    INNER JOIN Bookings b ON bkp.BookingId = b.BookingId
+    LEFT JOIN BookingFlights bf ON bf.BookingId = b.BookingId
+    LEFT JOIN Flights f ON bf.FlightId = f.FlightId
+    LEFT JOIN Routes r ON f.RouteId = r.RouteId
+    LEFT JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    LEFT JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE 
+        (@BoardingPassId IS NOT NULL AND bp.BoardingPassId = @BoardingPassId)
+        OR (@BoardingPassNumber IS NOT NULL AND bp.BoardingPassNumber = @BoardingPassNumber)
+        OR (@BookingPassengerId IS NOT NULL AND bp.BookingPassengerId = @BookingPassengerId);
+END
+GO
+
+-- =============================================
+-- SP: Scan Boarding Pass
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ScanBoardingPass
+    @BoardingPassNumber NVARCHAR(20),
+    @ScannedBy NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Check if boarding pass exists
+    IF NOT EXISTS (SELECT 1 FROM BoardingPasses WHERE BoardingPassNumber = @BoardingPassNumber)
+    BEGIN
+        SELECT 0 AS Success, 'Invalid boarding pass' AS Message;
+        RETURN;
+    END
+    
+    -- Check if already scanned
+    IF EXISTS (SELECT 1 FROM BoardingPasses WHERE BoardingPassNumber = @BoardingPassNumber AND IsUsed = 1)
+    BEGIN
+        SELECT 0 AS Success, 'Boarding pass already scanned' AS Message;
+        RETURN;
+    END
+    
+    -- Mark as scanned
+    UPDATE BoardingPasses
+    SET IsUsed = 1,
+        ScannedAt = GETDATE(),
+        ScannedBy = @ScannedBy
+    WHERE BoardingPassNumber = @BoardingPassNumber;
+    
+    -- Return passenger info
+    SELECT 
+        1 AS Success,
+        'Boarding pass scanned successfully' AS Message,
+        p.FirstName,
+        p.LastName,
+        bp.SeatNumber,
+        bp.SeatClass,
+        f.FlightNumber,
+        bpass.BoardingGroup,
+        bpass.Gate
+    FROM BoardingPasses bpass
+    INNER JOIN BookingPassengers bp ON bpass.BookingPassengerId = bp.BookingPassengerId
+    INNER JOIN Passengers p ON bp.PassengerId = p.PassengerId
+    INNER JOIN Bookings b ON bp.BookingId = b.BookingId
+    LEFT JOIN BookingFlights bf ON bf.BookingId = b.BookingId
+    LEFT JOIN Flights f ON bf.FlightId = f.FlightId
+    WHERE bpass.BoardingPassNumber = @BoardingPassNumber;
+END
+GO
+
+-- =============================================
+-- SP: Get Flight Boarding Passes
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetFlightBoardingPasses
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        bp.BoardingPassId,
+        bp.BoardingPassNumber,
+        bp.Gate,
+        bp.BoardingTime,
+        bp.BoardingGroup,
+        bp.BoardingZone,
+        bp.IsUsed,
+        bp.ScannedAt,
+        p.FirstName,
+        p.LastName,
+        bkp.SeatNumber,
+        bkp.SeatClass
+    FROM BoardingPasses bp
+    INNER JOIN BookingPassengers bkp ON bp.BookingPassengerId = bkp.BookingPassengerId
+    INNER JOIN Passengers p ON bkp.PassengerId = p.PassengerId
+    INNER JOIN Bookings b ON bkp.BookingId = b.BookingId
+    INNER JOIN BookingFlights bf ON bf.BookingId = b.BookingId
+    WHERE bf.FlightId = @FlightId
+    ORDER BY bp.BoardingGroup, bp.BoardingZone, bkp.SeatNumber;
+END
+GO
+
+-- =============================================
+-- SP: Update Gate Assignment
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdateBoardingPassGate
+    @FlightId INT,
+    @NewGate NVARCHAR(10),
+    @NewBoardingTime DATETIME = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE bp
+    SET Gate = @NewGate,
+        BoardingTime = ISNULL(@NewBoardingTime, BoardingTime)
+    FROM BoardingPasses bp
+    INNER JOIN BookingPassengers bkp ON bp.BookingPassengerId = bkp.BookingPassengerId
+    INNER JOIN BookingFlights bf ON bf.BookingId = bkp.BookingId
+    WHERE bf.FlightId = @FlightId;
+    
+    SELECT @@ROWCOUNT AS PassengersUpdated;
+END
+GO
+
+PRINT 'Boarding pass module created successfully!';
+GO
+
+
+
+
+
+
+-- =============================================
+-- Seat Repository Stored Procedures
+-- =============================================
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- SP: Get Flight Seats with availability
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetFlightSeats
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @AircraftId INT = (SELECT AircraftId FROM Flights WHERE FlightId = @FlightId);
+
+    SELECT
+        s.SeatId,
+        s.AircraftId,
+        s.SeatNumber,
+        s.SeatClass,
+        s.SeatType,
+        s.IsExitRow,
+        s.ExtraLegroom,
+        s.Price,
+        CASE
+            WHEN sr.SeatId IS NOT NULL THEN 0
+            ELSE s.IsAvailable
+        END AS IsAvailable
+    FROM Seats s
+    LEFT JOIN SeatReservations sr
+        ON sr.SeatId = s.SeatId
+        AND sr.FlightId = @FlightId
+        AND sr.ReservationStatus IN ('Reserved', 'Confirmed')
+    WHERE s.AircraftId = @AircraftId
+    ORDER BY
+        CASE s.SeatClass
+            WHEN 'FirstClass' THEN 1
+            WHEN 'Business'   THEN 2
+            WHEN 'Economy'    THEN 3
+            ELSE 4
+        END,
+        s.SeatNumber;
+END
+GO
+
+-- =============================================
+-- SP: Reserve Seat with hold timer
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ReserveSeat
+    @FlightId           INT,
+    @SeatId             INT,
+    @BookingPassengerId INT,
+    @HoldMinutes        INT = 15
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+
+        -- Check for active reservation
+        IF EXISTS (
+            SELECT 1 FROM SeatReservations
+            WHERE SeatId = @SeatId
+              AND FlightId = @FlightId
+              AND ReservationStatus IN ('Reserved', 'Confirmed')
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            THROW 50001, 'Seat is already reserved or confirmed', 1;
+            RETURN;
+        END
+
+        -- Clean up any expired holds for this seat
+        DELETE FROM SeatReservations
+        WHERE SeatId = @SeatId
+          AND FlightId = @FlightId
+          AND ReservationStatus = 'Hold'
+          AND ExpiresAt < GETDATE();
+
+        -- Insert new reservation
+        INSERT INTO SeatReservations (
+            FlightId, SeatId, BookingPassengerId,
+            ReservationStatus, ExpiresAt, CreatedAt
+        )
+        VALUES (
+            @FlightId, @SeatId, @BookingPassengerId,
+            'Reserved', DATEADD(MINUTE, @HoldMinutes, GETDATE()), GETDATE()
+        );
+
+        DECLARE @ReservationId INT = SCOPE_IDENTITY();
+        DECLARE @ExpiresAt DATETIME = DATEADD(MINUTE, @HoldMinutes, GETDATE());
+
+        COMMIT TRANSACTION;
+
+        SELECT
+            @ReservationId    AS ReservationId,
+            @ExpiresAt        AS ExpiresAt,
+            'Reserved'        AS ReservationStatus;
+
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- SP: Confirm Seat Reservations after payment
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ConfirmSeatReservations
+    @BookingId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE sr
+    SET sr.ReservationStatus = 'Confirmed',
+        sr.ConfirmedAt       = GETDATE()
+    FROM SeatReservations sr
+    INNER JOIN BookingPassengers bp
+        ON sr.BookingPassengerId = bp.BookingPassengerId
+    WHERE bp.BookingId = @BookingId
+      AND sr.ReservationStatus = 'Reserved';
+
+    SELECT @@ROWCOUNT AS ConfirmedCount;
+END
+GO
+
+-- =============================================
+-- SP: Release single reservation
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ReleaseSeatReservation
+    @ReservationId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE SeatReservations
+    SET ReservationStatus = 'Released'
+    WHERE ReservationId = @ReservationId
+      AND ReservationStatus IN ('Reserved', 'Hold');
+
+    SELECT @@ROWCOUNT AS Released;
+END
+GO
+
+-- =============================================
+-- SP: Release expired reservations (scheduler)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ReleaseExpiredReservations
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE SeatReservations
+    SET ReservationStatus = 'Expired'
+    WHERE ReservationStatus = 'Reserved'
+      AND ExpiresAt < GETDATE();
+
+    SELECT @@ROWCOUNT AS ReleasedCount;
+END
+GO
+
+-- =============================================
+-- SP: Check seat availability
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_IsSeatAvailable
+    @FlightId INT,
+    @SeatId   INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT CASE
+        WHEN EXISTS (
+            SELECT 1 FROM SeatReservations
+            WHERE SeatId   = @SeatId
+              AND FlightId = @FlightId
+              AND ReservationStatus IN ('Reserved', 'Confirmed')
+        ) THEN 0
+        WHEN EXISTS (
+            SELECT 1 FROM Seats
+            WHERE SeatId = @SeatId AND IsAvailable = 1
+        ) THEN 1
+        ELSE 0
+    END AS IsAvailable;
+END
+GO
+
+PRINT 'Seat repository stored procedures created successfully!';
+GO
+
+
+
+-- ═══════════════════════════════════════════════════════════
+-- BOOKING HISTORY & STATISTICS STORED PROCEDURES
+-- ═══════════════════════════════════════════════════════════
+
+USE AirlineManagement;
+GO
+
+-- ───────────────────────────────────────────────────────────
+-- sp_GetBookingHistory
+-- Retrieves paginated booking history with filters
+-- ───────────────────────────────────────────────────────────
+
+CREATE OR ALTER PROCEDURE sp_GetBookingHistory
+    @UserId         INT = NULL,
+    @BookingReference VARCHAR(10) = NULL,
+    @PNR            VARCHAR(6) = NULL,
+    @Status         VARCHAR(20) = NULL,
+    @FromDate       DATETIME = NULL,
+    @ToDate         DATETIME = NULL,
+    @Page           INT = 1,
+    @PageSize       INT = 10,
+    @TotalCount     INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Offset INT = (@Page - 1) * @PageSize;
+
+    -- Get total count
+    SELECT @TotalCount = COUNT(*)
+    FROM Bookings b
+    WHERE (@UserId IS NULL OR b.UserId = @UserId)
+      AND (@BookingReference IS NULL OR b.BookingReference = @BookingReference)
+      AND (@PNR IS NULL OR b.PNR = @PNR)
+      AND (@Status IS NULL OR b.BookingStatus = @Status)
+      AND (@FromDate IS NULL OR b.CreatedAt >= @FromDate)
+      AND (@ToDate IS NULL OR b.CreatedAt <= @ToDate);
+
+    -- Get paginated results
+    SELECT 
+        b.BookingId,
+        b.BookingReference,
+        b.PNR,
+        b.BookingStatus,
+        b.CreatedAt AS BookingDate,
+        (SELECT MIN(f.DepartureDateTime) 
+         FROM BookingFlights bf 
+         INNER JOIN Flights f ON bf.FlightId = f.FlightId 
+         WHERE bf.BookingId = b.BookingId) AS TravelDate,
+        (SELECT COUNT(*) FROM Passengers WHERE BookingId = b.BookingId) AS PassengerCount,
+        (SELECT COUNT(*) FROM BookingFlights WHERE BookingId = b.BookingId) AS FlightCount,
+        bp.TotalAmount,
+        bp.Currency,
+        p.PaymentStatus,
+        b.UpdatedAt AS LastModified
+    FROM Bookings b
+    LEFT JOIN BookingPricings bp ON b.BookingId = bp.BookingId
+    LEFT JOIN Payments p ON b.BookingId = p.BookingId
+    WHERE (@UserId IS NULL OR b.UserId = @UserId)
+      AND (@BookingReference IS NULL OR b.BookingReference = @BookingReference)
+      AND (@PNR IS NULL OR b.PNR = @PNR)
+      AND (@Status IS NULL OR b.BookingStatus = @Status)
+      AND (@FromDate IS NULL OR b.CreatedAt >= @FromDate)
+      AND (@ToDate IS NULL OR b.CreatedAt <= @ToDate)
+    ORDER BY b.CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END;
+GO
+
+-- ───────────────────────────────────────────────────────────
+-- sp_GetBookingStatistics
+-- Retrieves comprehensive booking analytics
+-- ───────────────────────────────────────────────────────────
+
+CREATE OR ALTER PROCEDURE sp_GetBookingStatistics
+    @UserId   INT = NULL,
+    @FromDate DATETIME = NULL,
+    @ToDate   DATETIME = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Stats TABLE (
+        TotalBookings      INT,
+        ActiveBookings     INT,
+        CancelledBookings  INT,
+        CompletedBookings  INT,
+        TotalRevenue       DECIMAL(18,2),
+        AverageBookingValue DECIMAL(18,2),
+        TotalPassengers    INT
+    );
+
+    -- Calculate main statistics
+    INSERT INTO @Stats
+    SELECT 
+        COUNT(DISTINCT b.BookingId) AS TotalBookings,
+        SUM(CASE WHEN b.BookingStatus IN ('Confirmed','Pending') THEN 1 ELSE 0 END) AS ActiveBookings,
+        SUM(CASE WHEN b.BookingStatus = 'Cancelled' THEN 1 ELSE 0 END) AS CancelledBookings,
+        SUM(CASE WHEN b.BookingStatus = 'Completed' THEN 1 ELSE 0 END) AS CompletedBookings,
+        ISNULL(SUM(bp.TotalAmount), 0) AS TotalRevenue,
+        ISNULL(AVG(bp.TotalAmount), 0) AS AverageBookingValue,
+        SUM((SELECT COUNT(*) FROM Passengers p WHERE p.BookingId = b.BookingId)) AS TotalPassengers
+    FROM Bookings b
+    LEFT JOIN BookingPricings bp ON b.BookingId = bp.BookingId
+    WHERE (@UserId IS NULL OR b.UserId = @UserId)
+      AND (@FromDate IS NULL OR b.CreatedAt >= @FromDate)
+      AND (@ToDate IS NULL OR b.CreatedAt <= @ToDate);
+
+    -- Return main statistics
+    SELECT * FROM @Stats;
+
+    -- Bookings by status breakdown
+    SELECT 
+        b.BookingStatus AS [Key],
+        COUNT(*) AS [Value]
+    FROM Bookings b
+    WHERE (@UserId IS NULL OR b.UserId = @UserId)
+      AND (@FromDate IS NULL OR b.CreatedAt >= @FromDate)
+      AND (@ToDate IS NULL OR b.CreatedAt <= @ToDate)
+    GROUP BY b.BookingStatus
+    ORDER BY [Value] DESC;
+
+    -- Bookings by month for trend analysis
+    SELECT 
+        FORMAT(b.CreatedAt, 'yyyy-MM') AS [Key],
+        COUNT(*) AS [Value]
+    FROM Bookings b
+    WHERE (@UserId IS NULL OR b.UserId = @UserId)
+      AND (@FromDate IS NULL OR b.CreatedAt >= @FromDate)
+      AND (@ToDate IS NULL OR b.CreatedAt <= @ToDate)
+    GROUP BY FORMAT(b.CreatedAt, 'yyyy-MM')
+    ORDER BY [Key];
+END;
+GO
+
+-- ───────────────────────────────────────────────────────────
+-- sp_GetUserBookingHistory
+-- Quick access to user's booking list
+-- ───────────────────────────────────────────────────────────
+
+CREATE OR ALTER PROCEDURE sp_GetUserBookingHistory
+    @UserId  INT,
+    @Status  VARCHAR(20) = NULL,
+    @Limit   INT = 20
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT TOP (@Limit)
+        b.BookingId,
+        b.BookingReference,
+        b.PNR,
+        b.BookingStatus,
+        b.CreatedAt,
+        bp.TotalAmount,
+        bp.Currency,
+        p.PaymentStatus,
+        -- Flight summary
+        STUFF((
+            SELECT ', ' + f.FlightNumber
+            FROM BookingFlights bf
+            INNER JOIN Flights f ON bf.FlightId = f.FlightId
+            WHERE bf.BookingId = b.BookingId
+            ORDER BY f.DepartureDateTime
+            FOR XML PATH('')
+        ), 1, 2, '') AS FlightNumbers,
+        -- Passenger count
+        (SELECT COUNT(*) FROM Passengers WHERE BookingId = b.BookingId) AS PassengerCount,
+        -- First flight departure
+        (SELECT MIN(f.DepartureDateTime) 
+         FROM BookingFlights bf 
+         INNER JOIN Flights f ON bf.FlightId = f.FlightId 
+         WHERE bf.BookingId = b.BookingId) AS DepartureDate
+    FROM Bookings b
+    LEFT JOIN BookingPricings bp ON b.BookingId = bp.BookingId
+    LEFT JOIN Payments p ON b.BookingId = p.BookingId
+    WHERE b.UserId = @UserId
+      AND (@Status IS NULL OR b.BookingStatus = @Status)
+    ORDER BY b.CreatedAt DESC;
+END;
+GO
+
+-- ───────────────────────────────────────────────────────────
+-- sp_GetBookingDetailedHistory
+-- Full booking details with all related entities
+-- ───────────────────────────────────────────────────────────
+
+CREATE OR ALTER PROCEDURE sp_GetBookingDetailedHistory
+    @BookingId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Booking header
+    SELECT 
+        b.*,
+        bp.*,
+        p.PaymentStatus,
+        p.PaymentMethod,
+        p.TransactionId,
+        p.PaidAt
+    FROM Bookings b
+    LEFT JOIN BookingPricings bp ON b.BookingId = bp.BookingId
+    LEFT JOIN Payments p ON b.BookingId = p.BookingId
+    WHERE b.BookingId = @BookingId;
+
+    -- Passengers
+    SELECT 
+        p.*,
+        pt.TicketNumber,
+        pt.SeatNumber,
+        pt.SeatClass,
+        pt.Gate,
+        pt.BoardingTime
+    FROM Passengers p
+    LEFT JOIN PassengerTickets pt ON p.PassengerId = pt.PassengerId
+    WHERE p.BookingId = @BookingId
+    ORDER BY p.PassengerId;
+
+    -- Flights
+    SELECT 
+        f.*,
+        orig.AirportCode AS OriginCode,
+        orig.AirportName AS OriginName,
+        orig.City AS OriginCity,
+        orig.Country AS OriginCountry,
+        dest.AirportCode AS DestinationCode,
+        dest.AirportName AS DestinationName,
+        dest.City AS DestinationCity,
+        dest.Country AS DestinationCountry,
+        a.AirlineName,
+        a.AirlineCode
+    FROM BookingFlights bf
+    INNER JOIN Flights f ON bf.FlightId = f.FlightId
+    INNER JOIN Airports orig ON f.OriginAirportId = orig.AirportId
+    INNER JOIN Airports dest ON f.DestinationAirportId = dest.AirportId
+    INNER JOIN Airlines a ON f.AirlineId = a.AirlineId
+    WHERE bf.BookingId = @BookingId
+    ORDER BY f.DepartureDateTime;
+
+    -- Seat reservations
+    SELECT 
+        sr.*,
+        s.SeatNumber,
+        s.SeatClass,
+        s.SeatType
+    FROM SeatReservations sr
+    INNER JOIN Seats s ON sr.SeatId = s.SeatId
+    WHERE sr.BookingId = @BookingId;
+
+    -- Audit trail
+    SELECT 
+        *
+    FROM BookingAuditLog
+    WHERE BookingId = @BookingId
+    ORDER BY ActionTimestamp DESC;
+END;
+GO
+
+PRINT 'Booking history and statistics stored procedures created successfully';

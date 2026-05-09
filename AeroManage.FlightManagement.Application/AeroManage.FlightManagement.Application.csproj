@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire" Version="1.8.23" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.10.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AeroManage.FlightManagement.Infrastructure\AeroManage.FlightManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.Infrastructure\AeroManage.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
+    <ProjectReference Include="..\AeroManage.UserManagement.Domain\AeroManage.UserManagement.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

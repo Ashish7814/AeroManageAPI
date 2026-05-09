@@ -1,0 +1,17 @@
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.deps.json
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.BookingManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.BookingManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.csproj.AssemblyReference.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.AssemblyInfoInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.AssemblyInfo.cs
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.csproj.CoreCompileInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroMana.DC286821.Up2Date
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\refint\AeroManage.BookingManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\AeroManage.BookingManagement.Infrastructure.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\obj\Debug\net8.0\ref\AeroManage.BookingManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.Shared.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.BookingManagement.Infrastructure\bin\Debug\net8.0\AeroManage.Shared.pdb

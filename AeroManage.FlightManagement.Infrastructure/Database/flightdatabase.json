@@ -1,0 +1,1038 @@
+CREATE TABLE Airport (
+    AirportId INT IDENTITY(1,1) PRIMARY KEY,
+    AirportCode VARCHAR(10) NOT NULL,
+    ICAOCode VARCHAR(10),
+    AirportName VARCHAR(200),
+    City VARCHAR(100),
+    State VARCHAR(100),
+    Country VARCHAR(100),
+    Latitude DECIMAL(10,6),
+    Longitude DECIMAL(10,6),
+    Timezone VARCHAR(100),
+    IsActive BIT DEFAULT 1,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE(),
+    TotalRecords INT
+);
+
+
+
+CREATE TABLE Route (
+    RouteId INT IDENTITY(1,1) PRIMARY KEY,
+    RouteCode VARCHAR(50),
+
+    OriginAirportId INT NOT NULL,
+    DestinationAirportId INT NOT NULL,
+
+    Distance INT,
+    EstimatedDuration INT,
+
+    TotalRecords INT,
+
+    CONSTRAINT FK_Route_OriginAirport
+    FOREIGN KEY (OriginAirportId)
+    REFERENCES Airport(AirportId),
+
+    CONSTRAINT FK_Route_DestinationAirport
+    FOREIGN KEY (DestinationAirportId)
+    REFERENCES Airport(AirportId)
+);
+
+
+
+CREATE TABLE Aircraft (
+    AircraftId INT IDENTITY(1,1) PRIMARY KEY,
+    RegistrationNumber VARCHAR(50),
+    AircraftType VARCHAR(50),
+    Manufacturer VARCHAR(100),
+    Model VARCHAR(100),
+    YearManufactured INT,
+
+    TotalSeats INT,
+    EconomySeats INT,
+    BusinessSeats INT,
+    FirstClassSeats INT,
+
+    CurrentStatus VARCHAR(50),
+
+    LastMaintenanceDate DATETIME,
+    NextMaintenanceDate DATETIME,
+
+    IsActive BIT DEFAULT 1,
+
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE(),
+
+    TotalRecords INT
+);
+
+
+
+
+
+CREATE TABLE Flight (
+    FlightId INT IDENTITY(1,1) PRIMARY KEY,
+    FlightNumber VARCHAR(50),
+
+    RouteId INT NOT NULL,
+    AircraftId INT NOT NULL,
+
+    DepartureDateTime DATETIME,
+    ArrivalDateTime DATETIME,
+
+    ActualDepartureDateTime DATETIME NULL,
+    ActualArrivalDateTime DATETIME NULL,
+
+    FlightStatus VARCHAR(50),
+
+    CreatedBy INT,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE(),
+
+    TotalRecords INT,
+
+    CONSTRAINT FK_Flight_Route
+    FOREIGN KEY (RouteId)
+    REFERENCES Route(RouteId),
+
+    CONSTRAINT FK_Flight_Aircraft
+    FOREIGN KEY (AircraftId)
+    REFERENCES Aircraft(AircraftId)
+);
+
+
+
+
+
+CREATE TABLE FlightPrice (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+
+    FlightId INT NOT NULL,
+
+    ClassType VARCHAR(50), -- Economy, Business, First
+
+    Price DECIMAL(10,2),
+
+    CONSTRAINT FK_FlightPrice_Flight
+    FOREIGN KEY (FlightId)
+    REFERENCES Flight(FlightId)
+);
+
+
+
+
+CREATE TABLE FlightSeatAvailability (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+
+    FlightId INT NOT NULL,
+
+    ClassType VARCHAR(50),
+
+    AvailableSeats INT,
+
+    CONSTRAINT FK_FlightSeatAvailability_Flight
+    FOREIGN KEY (FlightId)
+    REFERENCES Flight(FlightId)
+);
+
+
+
+
+CREATE TABLE GateAssignment (
+    AssignmentId INT IDENTITY(1,1) PRIMARY KEY,
+
+    FlightId INT NOT NULL,
+
+    GateNumber VARCHAR(20),
+
+    GateType VARCHAR(20), -- Departure / Arrival
+
+    ScheduledTime DATETIME,
+
+    ActualTime DATETIME NULL,
+
+    Status VARCHAR(50), -- Assigned, InUse, Released
+
+    AssignedAt DATETIME DEFAULT GETDATE(),
+
+    AssignedBy INT,
+
+    CONSTRAINT FK_GateAssignment_Flight
+    FOREIGN KEY (FlightId)
+    REFERENCES Flight(FlightId)
+);
+
+
+
+
+
+
+
+
+
+
+
+INSERT INTO Airport 
+(AirportCode, ICAOCode, AirportName, City, State, Country, Latitude, Longitude, Timezone, IsActive, CreatedAt, UpdatedAt)
+VALUES
+('DEL', 'VIDP', 'Indira Gandhi International Airport', 'Delhi', 'Delhi', 'India', 28.5562, 77.1000, 'Asia/Kolkata', 1, GETDATE(), GETDATE()),
+
+('BOM', 'VABB', 'Chhatrapati Shivaji International Airport', 'Mumbai', 'Maharashtra', 'India', 19.0896, 72.8656, 'Asia/Kolkata', 1, GETDATE(), GETDATE()),
+
+('BLR', 'VOBL', 'Kempegowda International Airport', 'Bangalore', 'Karnataka', 'India', 13.1986, 77.7066, 'Asia/Kolkata', 1, GETDATE(), GETDATE());
+
+
+
+INSERT INTO Route
+(RouteCode, OriginAirportId, DestinationAirportId, Distance, EstimatedDuration)
+VALUES
+('DEL-BOM', 1, 2, 1150, 140),
+
+('DEL-BLR', 1, 3, 1700, 180),
+
+('BOM-BLR', 2, 3, 980, 120);
+
+
+
+INSERT INTO Aircraft
+(RegistrationNumber, AircraftType, Manufacturer, Model, YearManufactured,
+TotalSeats, EconomySeats, BusinessSeats, FirstClassSeats,
+CurrentStatus, LastMaintenanceDate, NextMaintenanceDate,
+IsActive, CreatedAt, UpdatedAt)
+VALUES
+('VT-ABC', 'Commercial', 'Boeing', '737-800', 2018,
+180, 140, 30, 10,
+'Available', GETDATE()-30, GETDATE()+60,
+1, GETDATE(), GETDATE()),
+
+('VT-XYZ', 'Commercial', 'Airbus', 'A320', 2020,
+160, 120, 30, 10,
+'Available', GETDATE()-20, GETDATE()+70,
+1, GETDATE(), GETDATE());
+
+
+
+INSERT INTO Flight
+(FlightNumber, RouteId, AircraftId,
+DepartureDateTime, ArrivalDateTime,
+ActualDepartureDateTime, ActualArrivalDateTime,
+FlightStatus, CreatedBy, CreatedAt, UpdatedAt)
+VALUES
+('AI101', 1, 1,
+'2026-03-10 09:00:00', '2026-03-10 11:20:00',
+NULL, NULL,
+'Scheduled', 1, GETDATE(), GETDATE()),
+
+('AI202', 2, 2,
+'2026-03-10 14:00:00', '2026-03-10 17:00:00',
+NULL, NULL,
+'Scheduled', 1, GETDATE(), GETDATE());
+
+
+INSERT INTO FlightPrice (FlightId, ClassType, Price)
+VALUES
+(1, 'Economy', 5000),
+(1, 'Business', 12000),
+(1, 'First', 20000),
+
+(2, 'Economy', 6000),
+(2, 'Business', 14000),
+(2, 'First', 22000);
+
+
+
+
+INSERT INTO FlightSeatAvailability (FlightId, ClassType, AvailableSeats)
+VALUES
+(1, 'Economy', 120),
+(1, 'Business', 25),
+(1, 'First', 8),
+
+(2, 'Economy', 110),
+(2, 'Business', 28),
+(2, 'First', 9);
+
+
+
+INSERT INTO GateAssignment
+(FlightId, GateNumber, GateType, ScheduledTime, Status, AssignedAt, AssignedBy)
+VALUES
+(1, 'A12', 'Departure', '2026-03-10 08:30:00', 'Assigned', GETDATE(), 1),
+
+(1, 'B05', 'Arrival', '2026-03-10 11:20:00', 'Assigned', GETDATE(), 1),
+
+(2, 'C10', 'Departure', '2026-03-10 13:30:00', 'Assigned', GETDATE(), 1),
+
+(2, 'D03', 'Arrival', '2026-03-10 17:00:00', 'Assigned', GETDATE(), 1);
+
+
+
+CREATE PROCEDURE sp_GetFlights
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ------------------------------------------------
+    -- 1️⃣ Flights + Route + Aircraft + Airports
+    ------------------------------------------------
+
+    SELECT
+        f.FlightId,
+        f.FlightNumber,
+        f.RouteId,
+        f.AircraftId,
+        f.DepartureDateTime,
+        f.ArrivalDateTime,
+        f.ActualDepartureDateTime,
+        f.ActualArrivalDateTime,
+        f.FlightStatus,
+        f.CreatedBy,
+        f.CreatedAt,
+        f.UpdatedAt,
+
+        r.RouteId,
+        r.RouteCode,
+        r.OriginAirportId,
+        r.DestinationAirportId,
+        r.Distance,
+        r.EstimatedDuration,
+        r.TotalRecords,
+
+        oa.AirportId AS OriginAirportId,
+        oa.AirportCode AS OriginAirportCode,
+        oa.AirportName AS OriginAirportName,
+        oa.City AS OriginCity,
+        oa.State AS OriginState,
+        oa.Country AS OriginCountry,
+        oa.Latitude AS OriginLatitude,
+        oa.Longitude AS OriginLongitude,
+        oa.Timezone AS OriginTimezone,
+        oa.IsActive AS OriginIsActive,
+
+        da.AirportId AS DestinationAirportId,
+        da.AirportCode AS DestinationAirportCode,
+        da.AirportName AS DestinationAirportName,
+        da.City AS DestinationCity,
+        da.State AS DestinationState,
+        da.Country AS DestinationCountry,
+        da.Latitude AS DestinationLatitude,
+        da.Longitude AS DestinationLongitude,
+        da.Timezone AS DestinationTimezone,
+        da.IsActive AS DestinationIsActive,
+
+        a.AircraftId,
+        a.RegistrationNumber,
+        a.AircraftType,
+        a.Manufacturer,
+        a.Model,
+        a.YearManufactured,
+        a.TotalSeats,
+        a.EconomySeats,
+        a.BusinessSeats,
+        a.FirstClassSeats,
+        a.CurrentStatus,
+        a.LastMaintenanceDate,
+        a.NextMaintenanceDate,
+        a.IsActive
+
+    FROM Flight f
+
+    INNER JOIN Route r
+        ON f.RouteId = r.RouteId
+
+    INNER JOIN Airport oa
+        ON r.OriginAirportId = oa.AirportId
+
+    INNER JOIN Airport da
+        ON r.DestinationAirportId = da.AirportId
+
+    INNER JOIN Aircraft a
+        ON f.AircraftId = a.AircraftId;
+
+
+    ------------------------------------------------
+    -- 2️⃣ Flight Prices
+    ------------------------------------------------
+
+    SELECT
+        Id,
+        FlightId,
+        ClassType,
+        Price
+    FROM FlightPrice;
+
+
+    ------------------------------------------------
+    -- 3️⃣ Seat Availability
+    ------------------------------------------------
+
+    SELECT
+        Id,
+        FlightId,
+        ClassType,
+        AvailableSeats
+    FROM FlightSeatAvailability;
+
+
+    ------------------------------------------------
+    -- 4️⃣ Gate Assignments
+    ------------------------------------------------
+
+    SELECT
+        AssignmentId,
+        FlightId,
+        GateNumber,
+        GateType,
+        ScheduledTime,
+        ActualTime,
+        Status
+    FROM GateAssignment;
+
+END
+
+
+
+
+CREATE PROCEDURE sp_CreateFlight
+(
+    @FlightNumber VARCHAR(50),
+    @RouteId INT,
+    @AircraftId INT,
+    @DepartureDateTime DATETIME,
+    @ArrivalDateTime DATETIME,
+    @FlightStatus VARCHAR(50),
+    @CreatedBy INT
+)
+AS
+BEGIN
+
+INSERT INTO Flight
+(
+FlightNumber,
+RouteId,
+AircraftId,
+DepartureDateTime,
+ArrivalDateTime,
+FlightStatus,
+CreatedBy,
+CreatedAt,
+UpdatedAt
+)
+
+VALUES
+(
+@FlightNumber,
+@RouteId,
+@AircraftId,
+@DepartureDateTime,
+@ArrivalDateTime,
+@FlightStatus,
+@CreatedBy,
+GETDATE(),
+GETDATE()
+)
+
+SELECT SCOPE_IDENTITY() AS FlightId
+
+END
+
+
+
+
+
+CREATE PROCEDURE sp_UpdateFlightStatus
+(
+    @FlightId INT,
+    @FlightStatus VARCHAR(50)
+)
+AS
+BEGIN
+
+UPDATE Flight
+SET
+FlightStatus = @FlightStatus,
+UpdatedAt = GETDATE()
+
+WHERE FlightId = @FlightId
+
+END
+
+
+
+
+
+
+  CREATE TABLE Users (
+    UserId INT IDENTITY(1,1) PRIMARY KEY,
+    Email NVARCHAR(150) NOT NULL,
+    PasswordHash NVARCHAR(500),
+    PasswordSalt NVARCHAR(500),
+    FirstName NVARCHAR(100),
+    LastName NVARCHAR(100),
+    PhoneNumber NVARCHAR(20),
+    DateOfBirth DATE NULL,
+    Gender NVARCHAR(20),
+
+    RoleId INT,
+
+    IsEmailVerified BIT DEFAULT 0,
+    EmailVerificationToken NVARCHAR(200),
+    EmailVerificationTokenExpiry DATETIME,
+
+    PasswordResetToken NVARCHAR(200),
+    PasswordResetTokenExpiry DATETIME,
+
+    IsActive BIT DEFAULT 1,
+    LastLoginAt DATETIME,
+
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE()
+);
+
+
+
+
+
+  CREATE TABLE Roles
+(
+    RoleId INT IDENTITY(1,1) PRIMARY KEY,
+    RoleName NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(250),
+    IsActive BIT DEFAULT 1,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE()
+);
+
+
+
+
+
+  CREATE TABLE Users
+(
+    UserId INT IDENTITY(1,1) PRIMARY KEY,
+    Email NVARCHAR(150) NOT NULL,
+    PasswordHash NVARCHAR(500),
+    PasswordSalt NVARCHAR(500),
+
+    FirstName NVARCHAR(100),
+    LastName NVARCHAR(100),
+    PhoneNumber NVARCHAR(20),
+
+    DateOfBirth DATE NULL,
+    Gender NVARCHAR(20),
+
+    RoleId INT NOT NULL,
+
+    IsEmailVerified BIT DEFAULT 0,
+    EmailVerificationToken NVARCHAR(200),
+    EmailVerificationTokenExpiry DATETIME,
+
+    PasswordResetToken NVARCHAR(200),
+    PasswordResetTokenExpiry DATETIME,
+
+    IsActive BIT DEFAULT 1,
+    LastLoginAt DATETIME,
+
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT FK_User_Role
+        FOREIGN KEY (RoleId) REFERENCES Roles(RoleId)
+);
+
+
+
+
+CREATE TABLE FlightCrew
+(
+    FlightCrewId INT IDENTITY(1,1) PRIMARY KEY,
+    FlightId INT NOT NULL,
+    UserId INT NOT NULL,
+    AssignedAt DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT FK_FlightCrew_Flight
+        FOREIGN KEY (FlightId) REFERENCES Flights(FlightId),
+
+    CONSTRAINT FK_FlightCrew_User
+        FOREIGN KEY (UserId) REFERENCES Users(UserId)
+);
+
+
+
+INSERT INTO Roles (RoleName,Description)
+VALUES
+('Pilot','Main aircraft pilot'),
+('CoPilot','Assistant pilot'),
+('FlightAttendant','Cabin crew'),
+('AirlineStaff','Ground staff'),
+('Admin','System administrator');
+
+
+
+
+INSERT INTO FlightCrew (FlightId,UserId)
+VALUES
+(1,1),
+(1,2),
+(1,3);
+
+
+
+CREATE PROCEDURE sp_GetFlightCrew
+    @FlightId INT
+AS
+BEGIN
+
+    SELECT
+        fc.FlightCrewId,
+        fc.FlightId,
+        fc.UserId,
+        fc.AssignedAt,
+
+        u.FirstName,
+        u.LastName,
+        u.Email,
+        u.PhoneNumber,
+
+        r.RoleId,
+        r.RoleName
+
+    FROM FlightCrew fc
+
+    INNER JOIN Users u
+        ON fc.UserId = u.UserId
+
+    INNER JOIN Roles r
+        ON u.RoleId = r.RoleId
+
+    WHERE fc.FlightId = @FlightId
+
+END
+
+
+
+
+  CREATE TABLE [dbo].[FlightStatusHistory] (
+    StatusHistoryId INT IDENTITY(1,1) PRIMARY KEY,
+    FlightId INT NOT NULL,
+    OldStatus NVARCHAR(50),
+    NewStatus NVARCHAR(50),
+    Reason NVARCHAR(250),
+    ChangedBy INT NOT NULL,
+    ChangedAt DATETIME NOT NULL,
+    FOREIGN KEY (FlightId) REFERENCES Flights(FlightId),
+    FOREIGN KEY (ChangedBy) REFERENCES Users(UserId)
+);
+
+
+
+
+
+  INSERT INTO FlightStatusHistory (FlightId, OldStatus, NewStatus, Reason, ChangedBy, ChangedAt)
+VALUES
+(20241, 'Boarding', 'InFlight', 'Aircraft airborne, all systems nominal', 1, '2026-03-05 10:08:00'),
+(20241, 'Scheduled', 'Boarding', 'Passenger boarding commenced gate A12', 2, '2026-03-05 09:50:00'),
+(20241, 'Scheduled', NULL, 'Flight scheduled as per template SIN-DXB-001', 3, '2026-02-24 15:00:00');
+
+
+
+
+
+  CREATE PROCEDURE sp_GetFlightStatusHistory
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT 
+        fsh.StatusHistoryId,
+        fsh.FlightId,
+        fsh.OldStatus,
+        fsh.NewStatus,
+        fsh.Reason,
+        u.UserId AS ChangedById,
+        u.FirstName AS ChangedByFirstName,
+        u.LastName AS ChangedByLastName,
+        u.Email AS ChangedByEmail,
+        fsh.ChangedAt
+    FROM FlightStatusHistory fsh
+    INNER JOIN Users u ON fsh.ChangedBy = u.UserId
+    WHERE fsh.FlightId = @FlightId
+    ORDER BY fsh.ChangedAt DESC;
+END;
+
+
+
+
+
+  CREATE TABLE FlightNotifications
+(
+    NotificationId INT IDENTITY(1,1) PRIMARY KEY,
+
+    FlightId INT NOT NULL,
+
+    NotificationType NVARCHAR(50) NOT NULL, 
+    -- Delay, GateChange, Cancellation, Weather, Boarding
+
+    Message NVARCHAR(500) NOT NULL,
+
+    Severity NVARCHAR(20) NOT NULL, 
+    -- Info, Warning, Critical
+
+    IsResolved BIT NOT NULL DEFAULT 0,
+
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+
+    ChangedByUserId INT NULL,   -- FK to Users
+
+    ResolvedAt DATETIME2 NULL,
+
+    CONSTRAINT FK_FlightNotifications_Users
+        FOREIGN KEY (ChangedByUserId)
+        REFERENCES Users(UserId)
+);
+
+
+
+
+INSERT INTO FlightNotifications
+(FlightId, NotificationType, Message, Severity, IsResolved, CreatedAt, ChangedByUserId, ResolvedAt)
+VALUES
+(1, 'Delay', 'Flight delayed 85 minutes due to thunderstorm', 'Critical', 0, GETUTCDATE(), 1, NULL),
+
+(1, 'GateChange', 'Gate changed from E5 to E7', 'Warning', 0, GETUTCDATE(), 2, NULL),
+
+(1, 'Boarding', 'Boarding started for passengers', 'Info', 1, GETUTCDATE(), 3, GETUTCDATE());
+
+
+
+
+CREATE PROCEDURE sp_GetFlightNotifications
+(
+    @FlightId INT,
+    @IncludeResolved BIT
+)
+AS
+BEGIN
+
+    SELECT
+        fn.NotificationId,
+        fn.FlightId,
+        fn.NotificationType,
+        fn.Message,
+        fn.Severity,
+        fn.IsResolved,
+        fn.CreatedAt,
+        fn.ResolvedAt,
+
+        u.UserId,
+        u.FirstName,
+        u.LastName,
+        u.Email,
+        u.PhoneNumber
+
+    FROM FlightNotifications fn
+
+    LEFT JOIN Users u
+        ON fn.ChangedByUserId = u.UserId
+
+    WHERE fn.FlightId = @FlightId
+      AND (
+            @IncludeResolved = 1
+            OR fn.IsResolved = 0
+          )
+
+    ORDER BY fn.CreatedAt DESC;
+
+END
+
+
+
+  CREATE TABLE FlightDelayReasons
+(
+    DelayId INT IDENTITY(1,1) PRIMARY KEY,
+
+    FlightId INT NOT NULL,
+
+    DelayType NVARCHAR(50) NOT NULL, 
+    -- Weather, Technical, Operational, AirTrafficControl, CrewIssue
+
+    DelayMinutes INT NOT NULL,
+
+    Reason NVARCHAR(500) NOT NULL,
+
+    ReportedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+
+    ReportedByUserId INT NULL,
+
+    CONSTRAINT FK_FlightDelayReasons_User
+        FOREIGN KEY (ReportedByUserId)
+        REFERENCES Users(UserId)
+);
+
+
+
+  INSERT INTO FlightDelayReasons
+(FlightId, DelayType, DelayMinutes, Reason, ReportedAt, ReportedByUserId)
+VALUES
+(1,'Weather',85,'Severe thunderstorm activity at JFK International, ground stop issued by FAA.',GETUTCDATE(),1),
+
+(1,'Technical',40,'Hydraulic pressure warning detected during pre-flight checks.',GETUTCDATE(),2),
+
+(2,'Operational',25,'Late baggage loading due to conveyor malfunction.',GETUTCDATE(),2),
+
+(3,'AirTrafficControl',55,'ATC congestion causing holding pattern.',GETUTCDATE(),3);
+
+
+
+
+CREATE PROCEDURE sp_GetFlightDelayHistory
+(
+    @FlightId INT
+)
+AS
+BEGIN
+
+    SELECT
+        d.DelayId,
+        d.FlightId,
+        d.DelayType,
+        d.DelayMinutes,
+        d.Reason,
+        d.ReportedAt,
+
+        u.UserId,
+        u.FirstName,
+        u.LastName,
+        u.Email,
+        u.PhoneNumber,
+
+        r.RoleId,
+        r.RoleName
+
+    FROM FlightDelayReasons d
+
+    LEFT JOIN Users u
+        ON d.ReportedByUserId = u.UserId
+
+    LEFT JOIN Roles r
+        ON u.RoleId = r.RoleId
+
+    WHERE d.FlightId = @FlightId
+
+    ORDER BY d.ReportedAt DESC
+
+END
+
+
+
+
+  CREATE PROCEDURE sp_UpdateAircraft
+    @AircraftId INT,
+    @RegistrationNumber NVARCHAR(50),
+    @AircraftType NVARCHAR(50),
+    @Manufacturer NVARCHAR(50),
+    @Model NVARCHAR(50),
+    @YearManufactured INT,
+    @EconomySeats INT,
+    @BusinessSeats INT,
+    @FirstClassSeats INT,
+    @CurrentStatus INT,
+    @LastMaintenanceDate DATETIME,
+    @NextMaintenanceDate DATETIME,
+    @IsActive BIT,
+    @CurrentLocation NVARCHAR(100)
+AS
+BEGIN
+    UPDATE Aircraft
+    SET 
+        RegistrationNumber = @RegistrationNumber,
+        AircraftType = @AircraftType,
+        Manufacturer = @Manufacturer,
+        Model = @Model,
+        YearManufactured = @YearManufactured,
+        EconomySeats = @EconomySeats,
+        BusinessSeats = @BusinessSeats,
+        FirstClassSeats = @FirstClassSeats,
+        CurrentStatus = @CurrentStatus,
+        LastMaintenanceDate = @LastMaintenanceDate,
+        NextMaintenanceDate = @NextMaintenanceDate,
+        IsActive = @IsActive,
+        CurrentLocation = @CurrentLocation,
+        UpdatedAt = GETDATE()
+    WHERE AircraftId = @AircraftId;
+END
+
+
+
+
+
+CREATE PROCEDURE sp_InsertAircraft
+    @RegistrationNumber NVARCHAR(50),
+    @AircraftType NVARCHAR(50),
+    @Manufacturer NVARCHAR(50),
+    @Model NVARCHAR(50),
+    @YearManufactured INT,
+    @EconomySeats INT,
+    @BusinessSeats INT,
+    @FirstClassSeats INT,
+    @CurrentStatus INT, -- map to AircraftStatus enum
+    @LastMaintenanceDate DATETIME,
+    @NextMaintenanceDate DATETIME,
+    @IsActive BIT,
+    @CurrentLocation NVARCHAR(100)
+AS
+BEGIN
+    INSERT INTO Aircraft 
+    (RegistrationNumber, AircraftType, Manufacturer, Model, YearManufactured, EconomySeats, BusinessSeats, FirstClassSeats, CurrentStatus, LastMaintenanceDate, NextMaintenanceDate, IsActive, CurrentLocation, CreatedAt, UpdatedAt)
+    VALUES 
+    (@RegistrationNumber, @AircraftType, @Manufacturer, @Model, @YearManufactured, @EconomySeats, @BusinessSeats, @FirstClassSeats, @CurrentStatus, @LastMaintenanceDate, @NextMaintenanceDate, @IsActive, @CurrentLocation, GETDATE(), GETDATE());
+    
+    SELECT SCOPE_IDENTITY() AS AircraftId; -- returns newly inserted AircraftId
+END
+
+
+
+  CREATE PROCEDURE sp_DeleteAircraft
+    @AircraftId INT
+AS
+BEGIN
+    DELETE FROM Aircraft WHERE AircraftId = @AircraftId;
+END
+
+
+
+
+  CREATE PROCEDURE sp_GetAircraftById
+    @AircraftId INT
+AS
+BEGIN
+    SELECT *
+    FROM Aircraft
+    WHERE AircraftId = @AircraftId;
+END
+
+
+
+
+  CREATE PROCEDURE sp_GetAllAircraft
+AS
+BEGIN
+    SELECT *
+    FROM Aircraft
+    ORDER BY AircraftId;
+END
+
+
+
+
+
+  CREATE PROCEDURE sp_InsertMaintenanceRecord
+    @AircraftId INT,
+    @DatePerformed DATETIME,
+    @PerformedBy NVARCHAR(100),
+    @Description NVARCHAR(MAX),
+    @NextDueDate DATETIME
+AS
+BEGIN
+    INSERT INTO MaintenanceRecord
+    (AircraftId, DatePerformed, PerformedBy, Description, NextDueDate)
+    VALUES
+    (@AircraftId, @DatePerformed, @PerformedBy, @Description, @NextDueDate);
+
+    SELECT SCOPE_IDENTITY() AS MaintenanceRecordId;
+END
+
+
+
+
+  CREATE PROCEDURE sp_UpdateMaintenanceRecord
+    @MaintenanceRecordId INT,
+    @DatePerformed DATETIME,
+    @PerformedBy NVARCHAR(100),
+    @Description NVARCHAR(MAX),
+    @NextDueDate DATETIME
+AS
+BEGIN
+    UPDATE MaintenanceRecord
+    SET
+        DatePerformed = @DatePerformed,
+        PerformedBy = @PerformedBy,
+        Description = @Description,
+        NextDueDate = @NextDueDate
+    WHERE MaintenanceRecordId = @MaintenanceRecordId;
+END
+
+
+
+
+  CREATE PROCEDURE sp_DeleteMaintenanceRecord
+    @MaintenanceRecordId INT
+AS
+BEGIN
+    DELETE FROM MaintenanceRecord
+    WHERE MaintenanceRecordId = @MaintenanceRecordId;
+END
+
+
+
+
+  CREATE PROCEDURE sp_GetMaintenanceRecordsByAircraft
+    @AircraftId INT
+AS
+BEGIN
+    SELECT *
+    FROM MaintenanceRecord
+    WHERE AircraftId = @AircraftId
+    ORDER BY DatePerformed DESC;
+END
+
+
+
+
+
+CREATE PROCEDURE GetAirports
+    @PageNumber INT = 1,
+    @PageSize INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 📊 Total Records
+    DECLARE @TotalRecords INT;
+
+    SELECT @TotalRecords = COUNT(*) 
+    FROM Airports
+    WHERE IsActive = 1;
+
+    -- ✈️ Paged Data
+    SELECT 
+        AirportId,
+        AirportCode,
+        ICAOCode,
+        AirportName,
+        City,
+        State,
+        Country,
+        Latitude,
+        Longitude,
+        Timezone,
+        IsActive,
+        CreatedAt,
+        UpdatedAt,
+        @TotalRecords AS TotalRecords
+    FROM Airports
+    WHERE IsActive = 1
+    ORDER BY CreatedAt DESC
+    OFFSET (@PageNumber - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+
+
+
+
+
+
+
+
+

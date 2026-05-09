@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AeroManage.FlightManagement.Domain\AeroManage.FlightManagement.Domain.csproj" />
+    <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
+    <ProjectReference Include="..\AeroManage.UserManagement.Domain\AeroManage.UserManagement.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
