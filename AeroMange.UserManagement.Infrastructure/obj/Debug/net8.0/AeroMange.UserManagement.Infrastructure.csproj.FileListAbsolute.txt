@@ -1,0 +1,15 @@
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.csproj.AssemblyReference.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.AssemblyInfoInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.AssemblyInfo.cs
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.csproj.CoreCompileInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\bin\Debug\net8.0\AeroMange.UserManagement.Infrastructure.deps.json
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\bin\Debug\net8.0\AeroMange.UserManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\bin\Debug\net8.0\AeroMange.UserManagement.Infrastructure.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\bin\Debug\net8.0\AeroManage.UserManagement.Domain.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\bin\Debug\net8.0\AeroManage.UserManagement.Domain.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMang.D9AB3809.Up2Date
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\refint\AeroMange.UserManagement.Infrastructure.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\AeroMange.UserManagement.Infrastructure.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroMange.UserManagement.Infrastructure\obj\Debug\net8.0\ref\AeroMange.UserManagement.Infrastructure.dll

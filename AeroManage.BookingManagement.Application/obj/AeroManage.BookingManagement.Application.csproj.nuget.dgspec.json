@@ -1,0 +1,430 @@
+{
+  "format": 1,
+  "restore": {
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Application\\AeroManage.BookingManagement.Application.csproj": {}
+  },
+  "projects": {
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Application\\AeroManage.BookingManagement.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Application\\AeroManage.BookingManagement.Application.csproj",
+        "projectName": "AeroManage.BookingManagement.Application",
+        "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Application\\AeroManage.BookingManagement.Application.csproj",
+        "packagesPath": "C:\\Users\\Ashish\\.nuget\\packages\\",
+        "outputPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Application\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Ashish\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\AeroManage.BookingManagement.Infrastructure.csproj": {
+                "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\AeroManage.BookingManagement.Infrastructure.csproj"
+              },
+              "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\AeroManage.Infrastructure.csproj": {
+                "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\AeroManage.Infrastructure.csproj"
+              },
+              "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj": {
+                "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "DocumentFormat.OpenXml": {
+              "target": "Package",
+              "version": "[3.4.1, )"
+            },
+            "MediatR": {
+              "target": "Package",
+              "version": "[14.0.0, )"
+            },
+            "Microsoft.AspNetCore.Authorization": {
+              "target": "Package",
+              "version": "[8.0.15, )"
+            },
+            "Microsoft.AspNetCore.SignalR": {
+              "target": "Package",
+              "version": "[1.2.9, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "QRCoder": {
+              "target": "Package",
+              "version": "[1.7.0, )"
+            },
+            "Stripe.net": {
+              "target": "Package",
+              "version": "[50.3.0, )"
+            },
+            "iTextSharp": {
+              "target": "Package",
+              "version": "[5.5.13.5, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\AeroManage.BookingManagement.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\AeroManage.BookingManagement.Domain.csproj",
+        "projectName": "AeroManage.BookingManagement.Domain",
+        "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\AeroManage.BookingManagement.Domain.csproj",
+        "packagesPath": "C:\\Users\\Ashish\\.nuget\\packages\\",
+        "outputPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Ashish\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\AeroManage.BookingManagement.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\AeroManage.BookingManagement.Infrastructure.csproj",
+        "projectName": "AeroManage.BookingManagement.Infrastructure",
+        "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\AeroManage.BookingManagement.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\Ashish\\.nuget\\packages\\",
+        "outputPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Infrastructure\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Ashish\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\AeroManage.BookingManagement.Domain.csproj": {
+                "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.BookingManagement.Domain\\AeroManage.BookingManagement.Domain.csproj"
+              },
+              "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj": {
+                "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.66, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[6.1.4, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\AeroManage.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\AeroManage.Infrastructure.csproj",
+        "projectName": "AeroManage.Infrastructure",
+        "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\AeroManage.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\Ashish\\.nuget\\packages\\",
+        "outputPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Infrastructure\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Ashish\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.66, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[6.1.4, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj",
+        "projectName": "AeroManage.Shared",
+        "projectPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\AeroManage.Shared.csproj",
+        "packagesPath": "C:\\Users\\Ashish\\.nuget\\packages\\",
+        "outputPath": "D:\\AeroManage\\AeroManage\\AeroManageAPI\\AeroManage.Shared\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Ashish\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.66, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[6.1.4, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[2.10.14, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

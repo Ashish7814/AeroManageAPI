@@ -1,0 +1,12 @@
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\bin\Debug\net8.0\AeroManage.Shared.deps.json
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\bin\Debug\net8.0\AeroManage.Shared.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\bin\Debug\net8.0\AeroManage.Shared.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.csproj.AssemblyReference.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.GeneratedMSBuildEditorConfig.editorconfig
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.AssemblyInfoInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.AssemblyInfo.cs
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.csproj.CoreCompileInputs.cache
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\refint\AeroManage.Shared.dll
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\AeroManage.Shared.pdb
+D:\New folder\AeroManage\AeroManageAPI\AeroManage.Shared\obj\Debug\net8.0\ref\AeroManage.Shared.dll

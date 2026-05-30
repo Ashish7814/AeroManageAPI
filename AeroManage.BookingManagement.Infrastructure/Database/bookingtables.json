@@ -1,0 +1,254 @@
+-- =============================================
+-- Extended Booking Module - Additional Tables
+-- =============================================
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- Table: Airlines
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Airlines')
+BEGIN
+    CREATE TABLE Airlines (
+        AirlineId INT IDENTITY(1,1) PRIMARY KEY,
+        AirlineCode NVARCHAR(10) UNIQUE NOT NULL,
+        AirlineName NVARCHAR(200) NOT NULL,
+        Country NVARCHAR(100),
+        LogoUrl NVARCHAR(500),
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT UQ_Airlines_Code UNIQUE (AirlineCode)
+    );
+END
+GO
+
+-- =============================================
+-- Table: MealPreferences
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'MealPreferences')
+BEGIN
+    CREATE TABLE MealPreferences (
+        MealPreferenceId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingPassengerId INT NOT NULL,
+        MealType NVARCHAR(50) NOT NULL, -- Vegetarian, NonVegetarian, Vegan, Kosher, Halal, GlutenFree
+        SpecialInstructions NVARCHAR(500),
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_MealPreferences_BookingPassengers FOREIGN KEY (BookingPassengerId) 
+            REFERENCES BookingPassengers(BookingPassengerId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: SpecialAssistance
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'SpecialAssistance')
+BEGIN
+    CREATE TABLE SpecialAssistance (
+        AssistanceId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingPassengerId INT NOT NULL,
+        AssistanceType NVARCHAR(50) NOT NULL, -- Wheelchair, Elderly, SpecialMeal, VisualImpairment, HearingImpairment
+        Details NVARCHAR(1000),
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_SpecialAssistance_BookingPassengers FOREIGN KEY (BookingPassengerId) 
+            REFERENCES BookingPassengers(BookingPassengerId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: BookingAddons
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BookingAddons')
+BEGIN
+    CREATE TABLE BookingAddons (
+        AddonId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingPassengerId INT NOT NULL,
+        AddonType NVARCHAR(50) NOT NULL, -- ExtraBaggage, Insurance, PriorityBoarding, LoungeAccess
+        Price DECIMAL(10, 2) NOT NULL,
+        Quantity INT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_BookingAddons_BookingPassengers FOREIGN KEY (BookingPassengerId) 
+            REFERENCES BookingPassengers(BookingPassengerId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: PaymentWebhookLogs
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PaymentWebhookLogs')
+BEGIN
+    CREATE TABLE PaymentWebhookLogs (
+        WebhookId INT IDENTITY(1,1) PRIMARY KEY,
+        EventType NVARCHAR(100) NOT NULL,
+        PayloadData NVARCHAR(MAX),
+        PaymentIntentId NVARCHAR(255),
+        BookingId INT,
+        Status NVARCHAR(50) DEFAULT 'Received', -- Received, Processed, Failed
+        ErrorMessage NVARCHAR(MAX),
+        ReceivedAt DATETIME DEFAULT GETDATE(),
+        ProcessedAt DATETIME,
+        CONSTRAINT FK_PaymentWebhookLogs_Bookings FOREIGN KEY (BookingId) 
+            REFERENCES Bookings(BookingId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: Refunds
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Refunds')
+BEGIN
+    CREATE TABLE Refunds (
+        RefundId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingId INT NOT NULL,
+        PaymentId INT NOT NULL,
+        RefundReference NVARCHAR(50) UNIQUE NOT NULL,
+        RefundAmount DECIMAL(10, 2) NOT NULL,
+        CancellationFee DECIMAL(10, 2) DEFAULT 0,
+        RefundStatus NVARCHAR(50) DEFAULT 'Pending', -- Pending, Processing, Completed, Failed
+        RefundReason NVARCHAR(1000),
+        BankAccountNumber NVARCHAR(50),
+        BankName NVARCHAR(200),
+        RequestedBy INT NOT NULL,
+        RequestedAt DATETIME DEFAULT GETDATE(),
+        ProcessedAt DATETIME,
+        StripeRefundId NVARCHAR(255),
+        CONSTRAINT FK_Refunds_Bookings FOREIGN KEY (BookingId) 
+            REFERENCES Bookings(BookingId),
+        CONSTRAINT FK_Refunds_Payments FOREIGN KEY (PaymentId) 
+            REFERENCES Payments(PaymentId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: BookingModificationLogs
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BookingModificationLogs')
+BEGIN
+    CREATE TABLE BookingModificationLogs (
+        ModificationId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingId INT NOT NULL,
+        ModificationType NVARCHAR(50) NOT NULL, -- DateChange, SeatChange, PassengerUpdate
+        OldValue NVARCHAR(MAX),
+        NewValue NVARCHAR(MAX),
+        ModificationFee DECIMAL(10, 2) DEFAULT 0,
+        ModifiedBy INT NOT NULL,
+        ModifiedAt DATETIME DEFAULT GETDATE(),
+        Reason NVARCHAR(1000),
+        CONSTRAINT FK_BookingModificationLogs_Bookings FOREIGN KEY (BookingId) 
+            REFERENCES Bookings(BookingId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: BoardingPasses
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BoardingPasses')
+BEGIN
+    CREATE TABLE BoardingPasses (
+        BoardingPassId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingPassengerId INT NOT NULL,
+        BoardingPassNumber NVARCHAR(20) UNIQUE NOT NULL,
+        Gate NVARCHAR(10),
+        BoardingTime DATETIME,
+        QRCode NVARCHAR(MAX),
+        Barcode NVARCHAR(100),
+        IsUsed BIT DEFAULT 0,
+        ScannedAt DATETIME,
+        GeneratedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_BoardingPasses_BookingPassengers FOREIGN KEY (BookingPassengerId) 
+            REFERENCES BookingPassengers(BookingPassengerId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: EmailNotificationLogs
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailNotificationLogs')
+BEGIN
+    CREATE TABLE EmailNotificationLogs (
+        NotificationId INT IDENTITY(1,1) PRIMARY KEY,
+        BookingId INT NOT NULL,
+        EmailType NVARCHAR(50) NOT NULL, -- Confirmation, Cancellation, Reminder, Modification
+        RecipientEmail NVARCHAR(255) NOT NULL,
+        Subject NVARCHAR(500),
+        Status NVARCHAR(50) DEFAULT 'Pending', -- Pending, Sent, Delivered, Failed
+        ErrorMessage NVARCHAR(MAX),
+        SentAt DATETIME DEFAULT GETDATE(),
+        DeliveredAt DATETIME,
+        CONSTRAINT FK_EmailNotificationLogs_Bookings FOREIGN KEY (BookingId) 
+            REFERENCES Bookings(BookingId)
+    );
+END
+GO
+
+-- =============================================
+-- Create Indexes
+-- =============================================
+
+-- Airlines
+CREATE NONCLUSTERED INDEX IX_Airlines_Code ON Airlines(AirlineCode);
+CREATE NONCLUSTERED INDEX IX_Airlines_Active ON Airlines(IsActive);
+
+-- MealPreferences
+CREATE NONCLUSTERED INDEX IX_MealPreferences_BookingPassenger ON MealPreferences(BookingPassengerId);
+
+-- SpecialAssistance
+CREATE NONCLUSTERED INDEX IX_SpecialAssistance_BookingPassenger ON SpecialAssistance(BookingPassengerId);
+
+-- BookingAddons
+CREATE NONCLUSTERED INDEX IX_BookingAddons_BookingPassenger ON BookingAddons(BookingPassengerId);
+CREATE NONCLUSTERED INDEX IX_BookingAddons_Type ON BookingAddons(AddonType);
+
+-- PaymentWebhookLogs
+CREATE NONCLUSTERED INDEX IX_PaymentWebhookLogs_PaymentIntent ON PaymentWebhookLogs(PaymentIntentId);
+CREATE NONCLUSTERED INDEX IX_PaymentWebhookLogs_Booking ON PaymentWebhookLogs(BookingId);
+CREATE NONCLUSTERED INDEX IX_PaymentWebhookLogs_Status ON PaymentWebhookLogs(Status);
+CREATE NONCLUSTERED INDEX IX_PaymentWebhookLogs_ReceivedAt ON PaymentWebhookLogs(ReceivedAt);
+
+-- Refunds
+CREATE NONCLUSTERED INDEX IX_Refunds_Booking ON Refunds(BookingId);
+CREATE NONCLUSTERED INDEX IX_Refunds_Payment ON Refunds(PaymentId);
+CREATE NONCLUSTERED INDEX IX_Refunds_Status ON Refunds(RefundStatus);
+CREATE NONCLUSTERED INDEX IX_Refunds_Reference ON Refunds(RefundReference);
+
+-- BookingModificationLogs
+CREATE NONCLUSTERED INDEX IX_BookingModificationLogs_Booking ON BookingModificationLogs(BookingId);
+CREATE NONCLUSTERED INDEX IX_BookingModificationLogs_Type ON BookingModificationLogs(ModificationType);
+
+-- BoardingPasses
+CREATE NONCLUSTERED INDEX IX_BoardingPasses_BookingPassenger ON BoardingPasses(BookingPassengerId);
+CREATE NONCLUSTERED INDEX IX_BoardingPasses_Number ON BoardingPasses(BoardingPassNumber);
+
+-- EmailNotificationLogs
+CREATE NONCLUSTERED INDEX IX_EmailNotificationLogs_Booking ON EmailNotificationLogs(BookingId);
+CREATE NONCLUSTERED INDEX IX_EmailNotificationLogs_Status ON EmailNotificationLogs(Status);
+CREATE NONCLUSTERED INDEX IX_EmailNotificationLogs_Type ON EmailNotificationLogs(EmailType);
+
+GO
+
+-- =============================================
+-- Sample Data - Airlines
+-- =============================================
+INSERT INTO Airlines (AirlineCode, AirlineName, Country, IsActive)
+VALUES
+    ('AA', 'American Airlines', 'USA', 1),
+    ('DL', 'Delta Air Lines', 'USA', 1),
+    ('UA', 'United Airlines', 'USA', 1),
+    ('BA', 'British Airways', 'UK', 1),
+    ('LH', 'Lufthansa', 'Germany', 1),
+    ('AF', 'Air France', 'France', 1),
+    ('EK', 'Emirates', 'UAE', 1),
+    ('SQ', 'Singapore Airlines', 'Singapore', 1),
+    ('QF', 'Qantas', 'Australia', 1),
+    ('AC', 'Air Canada', 'Canada', 1);
+GO
+
+PRINT 'Extended booking tables created successfully!';
+GO

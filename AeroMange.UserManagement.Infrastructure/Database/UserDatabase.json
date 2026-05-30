@@ -1,0 +1,153 @@
+-- =============================================
+-- Airline Management System - User Management Module
+-- Database Schema
+-- =============================================
+
+-- Create Database
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'AirlineManagementDB')
+BEGIN
+    CREATE DATABASE AirlineManagementDB;
+END
+GO
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- Table: Roles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Roles')
+BEGIN
+    CREATE TABLE Roles (
+        RoleId INT IDENTITY(1,1) PRIMARY KEY,
+        RoleName NVARCHAR(50) NOT NULL UNIQUE,
+        Description NVARCHAR(255),
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE()
+    );
+END
+GO
+
+-- =============================================
+-- Table: Users
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
+BEGIN
+    CREATE TABLE Users (
+        UserId INT IDENTITY(1,1) PRIMARY KEY,
+        Email NVARCHAR(255) NOT NULL UNIQUE,
+        PasswordHash NVARCHAR(500) NOT NULL,
+        PasswordSalt NVARCHAR(500) NOT NULL,
+        FirstName NVARCHAR(100) NOT NULL,
+        LastName NVARCHAR(100) NOT NULL,
+        PhoneNumber NVARCHAR(20),
+        DateOfBirth DATE,
+        Gender NVARCHAR(10),
+        RoleId INT NOT NULL,
+        IsEmailVerified BIT DEFAULT 0,
+        EmailVerificationToken NVARCHAR(500),
+        EmailVerificationTokenExpiry DATETIME,
+        PasswordResetToken NVARCHAR(500),
+        PasswordResetTokenExpiry DATETIME,
+        IsActive BIT DEFAULT 1,
+        LastLoginAt DATETIME,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_Users_Roles FOREIGN KEY (RoleId) REFERENCES Roles(RoleId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: UserProfiles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'UserProfiles')
+BEGIN
+    CREATE TABLE UserProfiles (
+        ProfileId INT IDENTITY(1,1) PRIMARY KEY,
+        UserId INT NOT NULL UNIQUE,
+        PassportNumber NVARCHAR(50),
+        PassportExpiryDate DATE,
+        Nationality NVARCHAR(50),
+        Address NVARCHAR(500),
+        City NVARCHAR(100),
+        State NVARCHAR(100),
+        Country NVARCHAR(100),
+        ZipCode NVARCHAR(20),
+        EmergencyContactName NVARCHAR(200),
+        EmergencyContactPhone NVARCHAR(20),
+        FrequentFlyerNumber NVARCHAR(50),
+        PreferredSeatType NVARCHAR(50),
+        MealPreference NVARCHAR(50),
+        ProfileImageUrl NVARCHAR(500),
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_UserProfiles_Users FOREIGN KEY (UserId) REFERENCES Users(UserId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: RefreshTokens
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RefreshTokens')
+BEGIN
+    CREATE TABLE RefreshTokens (
+        TokenId INT IDENTITY(1,1) PRIMARY KEY,
+        UserId INT NOT NULL,
+        Token NVARCHAR(500) NOT NULL UNIQUE,
+        ExpiresAt DATETIME NOT NULL,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        RevokedAt DATETIME,
+        IsRevoked BIT DEFAULT 0,
+        CONSTRAINT FK_RefreshTokens_Users FOREIGN KEY (UserId) REFERENCES Users(UserId) ON DELETE CASCADE
+    );
+END
+GO
+
+-- =============================================
+-- Table: AuditLogs
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AuditLogs')
+BEGIN
+    CREATE TABLE AuditLogs (
+        AuditId INT IDENTITY(1,1) PRIMARY KEY,
+        UserId INT,
+        Action NVARCHAR(100) NOT NULL,
+        Entity NVARCHAR(100),
+        EntityId INT,
+        OldValues NVARCHAR(MAX),
+        NewValues NVARCHAR(MAX),
+        IpAddress NVARCHAR(50),
+        UserAgent NVARCHAR(500),
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_AuditLogs_Users FOREIGN KEY (UserId) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Insert Default Roles
+-- =============================================
+IF NOT EXISTS (SELECT * FROM Roles)
+BEGIN
+    INSERT INTO Roles (RoleName, Description) VALUES
+    ('Admin', 'System Administrator with full access'),
+    ('Customer', 'Regular customer who books flights'),
+    ('AirlineStaff', 'Airline employee managing operations'),
+    ('MaintenanceCrew', 'Aircraft maintenance personnel'),
+    ('GroundStaff', 'Ground handling and check-in staff');
+END
+GO
+
+-- =============================================
+-- Create Indexes
+-- =============================================
+CREATE NONCLUSTERED INDEX IX_Users_Email ON Users(Email);
+CREATE NONCLUSTERED INDEX IX_Users_RoleId ON Users(RoleId);
+CREATE NONCLUSTERED INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
+CREATE NONCLUSTERED INDEX IX_RefreshTokens_UserId ON RefreshTokens(UserId);
+CREATE NONCLUSTERED INDEX IX_AuditLogs_UserId ON AuditLogs(UserId);
+CREATE NONCLUSTERED INDEX IX_AuditLogs_CreatedAt ON AuditLogs(CreatedAt);
+GO

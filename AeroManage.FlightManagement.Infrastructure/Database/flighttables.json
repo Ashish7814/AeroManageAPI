@@ -1,0 +1,438 @@
+-- =============================================
+-- Airline Management System - Flight Management Module
+-- Database Schema
+-- =============================================
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- Table: Airports
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Airports')
+BEGIN
+    CREATE TABLE Airports (
+        AirportId INT IDENTITY(1,1) PRIMARY KEY,
+        AirportCode NVARCHAR(10) NOT NULL UNIQUE, -- IATA code (e.g., JFK, LAX)
+        ICAOCode NVARCHAR(10), -- ICAO code
+        AirportName NVARCHAR(200) NOT NULL,
+        City NVARCHAR(100) NOT NULL,
+        State NVARCHAR(100),
+        Country NVARCHAR(100) NOT NULL,
+        Latitude DECIMAL(10, 7),
+        Longitude DECIMAL(10, 7),
+        Timezone NVARCHAR(50),
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE()
+    );
+END
+GO
+
+-- =============================================
+-- Table: Aircraft
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Aircraft')
+BEGIN
+    CREATE TABLE Aircraft (
+        AircraftId INT IDENTITY(1,1) PRIMARY KEY,
+        RegistrationNumber NVARCHAR(50) NOT NULL UNIQUE,
+        AircraftType NVARCHAR(100) NOT NULL, -- e.g., Boeing 737, Airbus A320
+        Manufacturer NVARCHAR(100),
+        Model NVARCHAR(100),
+        YearManufactured INT,
+        TotalSeats INT NOT NULL,
+        EconomySeats INT NOT NULL,
+        BusinessSeats INT NOT NULL,
+        FirstClassSeats INT NOT NULL,
+        CurrentStatus NVARCHAR(50) DEFAULT 'Available', -- Available, InFlight, Maintenance, OutOfService
+        LastMaintenanceDate DATETIME,
+        NextMaintenanceDate DATETIME,
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE()
+    );
+END
+GO
+
+-- =============================================
+-- Table: Routes
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Routes')
+BEGIN
+    CREATE TABLE Routes (
+        RouteId INT IDENTITY(1,1) PRIMARY KEY,
+        RouteCode NVARCHAR(20) NOT NULL UNIQUE,
+        OriginAirportId INT NOT NULL,
+        DestinationAirportId INT NOT NULL,
+        Distance INT, -- in kilometers
+        EstimatedDuration INT, -- in minutes
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_Routes_OriginAirport FOREIGN KEY (OriginAirportId) REFERENCES Airports(AirportId),
+        CONSTRAINT FK_Routes_DestinationAirport FOREIGN KEY (DestinationAirportId) REFERENCES Airports(AirportId),
+        CONSTRAINT CHK_Routes_DifferentAirports CHECK (OriginAirportId != DestinationAirportId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: Flights
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Flights')
+BEGIN
+    CREATE TABLE Flights (
+        FlightId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightNumber NVARCHAR(20) NOT NULL,
+        RouteId INT NOT NULL,
+        AircraftId INT NOT NULL,
+        DepartureDateTime DATETIME NOT NULL,
+        ArrivalDateTime DATETIME NOT NULL,
+        ActualDepartureDateTime DATETIME,
+        ActualArrivalDateTime DATETIME,
+        FlightStatus NVARCHAR(50) DEFAULT 'Scheduled', -- Scheduled, Boarding, Departed, InFlight, Landed, Delayed, Cancelled
+        DepartureGate NVARCHAR(10),
+        ArrivalGate NVARCHAR(10),
+        EconomyPrice DECIMAL(10, 2) NOT NULL,
+        BusinessPrice DECIMAL(10, 2) NOT NULL,
+        FirstClassPrice DECIMAL(10, 2) NOT NULL,
+        AvailableEconomySeats INT NOT NULL,
+        AvailableBusinessSeats INT NOT NULL,
+        AvailableFirstClassSeats INT NOT NULL,
+        CreatedBy INT,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_Flights_Routes FOREIGN KEY (RouteId) REFERENCES Routes(RouteId),
+        CONSTRAINT FK_Flights_Aircraft FOREIGN KEY (AircraftId) REFERENCES Aircraft(AircraftId),
+        CONSTRAINT FK_Flights_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightCrew
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightCrew')
+BEGIN
+    CREATE TABLE FlightCrew (
+        FlightCrewId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightId INT NOT NULL,
+        UserId INT NOT NULL, -- Staff member from Users table
+        CrewRole NVARCHAR(50) NOT NULL, -- Pilot, CoPilot, FlightAttendant, etc.
+        AssignedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_FlightCrew_Flights FOREIGN KEY (FlightId) REFERENCES Flights(FlightId) ON DELETE CASCADE,
+        CONSTRAINT FK_FlightCrew_Users FOREIGN KEY (UserId) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightStatusHistory
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightStatusHistory')
+BEGIN
+    CREATE TABLE FlightStatusHistory (
+        StatusHistoryId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightId INT NOT NULL,
+        OldStatus NVARCHAR(50),
+        NewStatus NVARCHAR(50) NOT NULL,
+        Reason NVARCHAR(500),
+        ChangedBy INT,
+        ChangedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_FlightStatusHistory_Flights FOREIGN KEY (FlightId) REFERENCES Flights(FlightId) ON DELETE CASCADE,
+        CONSTRAINT FK_FlightStatusHistory_ChangedBy FOREIGN KEY (ChangedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Create Indexes
+-- =============================================
+CREATE NONCLUSTERED INDEX IX_Flights_FlightNumber ON Flights(FlightNumber);
+CREATE NONCLUSTERED INDEX IX_Flights_DepartureDateTime ON Flights(DepartureDateTime);
+CREATE NONCLUSTERED INDEX IX_Flights_FlightStatus ON Flights(FlightStatus);
+CREATE NONCLUSTERED INDEX IX_Flights_RouteId ON Flights(RouteId);
+CREATE NONCLUSTERED INDEX IX_Flights_AircraftId ON Flights(AircraftId);
+CREATE NONCLUSTERED INDEX IX_Routes_OriginDestination ON Routes(OriginAirportId, DestinationAirportId);
+CREATE NONCLUSTERED INDEX IX_Aircraft_RegistrationNumber ON Aircraft(RegistrationNumber);
+CREATE NONCLUSTERED INDEX IX_Aircraft_CurrentStatus ON Aircraft(CurrentStatus);
+CREATE NONCLUSTERED INDEX IX_Airports_AirportCode ON Airports(AirportCode);
+CREATE NONCLUSTERED INDEX IX_FlightCrew_FlightId ON FlightCrew(FlightId);
+CREATE NONCLUSTERED INDEX IX_FlightStatusHistory_FlightId ON FlightStatusHistory(FlightId);
+GO
+
+-- =============================================
+-- Insert Sample Airports
+-- =============================================
+IF NOT EXISTS (SELECT * FROM Airports)
+BEGIN
+    SET IDENTITY_INSERT Airports ON;
+    
+    INSERT INTO Airports (AirportId, AirportCode, ICAOCode, AirportName, City, State, Country, Latitude, Longitude, Timezone) VALUES
+    (1, 'JFK', 'KJFK', 'John F. Kennedy International Airport', 'New York', 'New York', 'United States', 40.6413, -73.7781, 'America/New_York'),
+    (2, 'LAX', 'KLAX', 'Los Angeles International Airport', 'Los Angeles', 'California', 'United States', 33.9416, -118.4085, 'America/Los_Angeles'),
+    (3, 'ORD', 'KORD', 'O''Hare International Airport', 'Chicago', 'Illinois', 'United States', 41.9742, -87.9073, 'America/Chicago'),
+    (4, 'DFW', 'KDFW', 'Dallas/Fort Worth International Airport', 'Dallas', 'Texas', 'United States', 32.8998, -97.0403, 'America/Chicago'),
+    (5, 'LHR', 'EGLL', 'London Heathrow Airport', 'London', NULL, 'United Kingdom', 51.4700, -0.4543, 'Europe/London'),
+    (6, 'DXB', 'OMDB', 'Dubai International Airport', 'Dubai', NULL, 'United Arab Emirates', 25.2532, 55.3657, 'Asia/Dubai'),
+    (7, 'HND', 'RJTT', 'Tokyo Haneda Airport', 'Tokyo', NULL, 'Japan', 35.5494, 139.7798, 'Asia/Tokyo'),
+    (8, 'CDG', 'LFPG', 'Charles de Gaulle Airport', 'Paris', NULL, 'France', 49.0097, 2.5479, 'Europe/Paris'),
+    (9, 'SFO', 'KSFO', 'San Francisco International Airport', 'San Francisco', 'California', 'United States', 37.6213, -122.3790, 'America/Los_Angeles'),
+    (10, 'MIA', 'KMIA', 'Miami International Airport', 'Miami', 'Florida', 'United States', 25.7959, -80.2870, 'America/New_York');
+    
+    SET IDENTITY_INSERT Airports OFF;
+END
+GO
+
+-- =============================================
+-- Insert Sample Aircraft
+-- =============================================
+IF NOT EXISTS (SELECT * FROM Aircraft)
+BEGIN
+    INSERT INTO Aircraft (RegistrationNumber, AircraftType, Manufacturer, Model, YearManufactured, TotalSeats, EconomySeats, BusinessSeats, FirstClassSeats, CurrentStatus) VALUES
+    ('N12345', 'Boeing 737-800', 'Boeing', '737-800', 2018, 189, 162, 24, 3, 'Available'),
+    ('N23456', 'Airbus A320', 'Airbus', 'A320-200', 2019, 180, 150, 24, 6, 'Available'),
+    ('N34567', 'Boeing 777-300ER', 'Boeing', '777-300ER', 2020, 396, 301, 70, 25, 'Available'),
+    ('N45678', 'Airbus A350-900', 'Airbus', 'A350-900', 2021, 325, 258, 48, 19, 'Available'),
+    ('N56789', 'Boeing 787-9', 'Boeing', '787-9', 2020, 290, 234, 42, 14, 'Available');
+END
+GO
+
+-- =============================================
+-- Insert Sample Routes
+-- =============================================
+IF NOT EXISTS (SELECT * FROM Routes)
+BEGIN
+    INSERT INTO Routes (RouteCode, OriginAirportId, DestinationAirportId, Distance, EstimatedDuration) VALUES
+    ('JFK-LAX', 1, 2, 3983, 360),
+    ('LAX-JFK', 2, 1, 3983, 330),
+    ('JFK-LHR', 1, 5, 5541, 420),
+    ('LHR-JFK', 5, 1, 5541, 480),
+    ('LAX-HND', 2, 7, 8815, 660),
+    ('ORD-DFW', 3, 4, 1290, 150),
+    ('SFO-MIA', 9, 10, 4138, 330),
+    ('JFK-CDG', 1, 8, 5836, 450);
+END
+GO
+
+PRINT 'Flight Management Module tables created successfully!';
+GO
+
+
+
+
+
+
+
+
+
+-- =============================================
+-- Enhanced Flight Management Module - Additional Tables
+-- =============================================
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- Table: RouteLayovers (For multi-stop routes)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RouteLayovers')
+BEGIN
+    CREATE TABLE RouteLayovers (
+        LayoverId INT IDENTITY(1,1) PRIMARY KEY,
+        RouteId INT NOT NULL,
+        AirportId INT NOT NULL,
+        LayoverSequence INT NOT NULL, -- Order of layover (1, 2, 3...)
+        MinimumLayoverMinutes INT DEFAULT 60,
+        MaximumLayoverMinutes INT DEFAULT 240,
+        IsActive BIT DEFAULT 1,
+        CONSTRAINT FK_RouteLayovers_Routes FOREIGN KEY (RouteId) REFERENCES Routes(RouteId) ON DELETE CASCADE,
+        CONSTRAINT FK_RouteLayovers_Airports FOREIGN KEY (AirportId) REFERENCES Airports(AirportId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightScheduleTemplates (Recurring schedules)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightScheduleTemplates')
+BEGIN
+    CREATE TABLE FlightScheduleTemplates (
+        TemplateId INT IDENTITY(1,1) PRIMARY KEY,
+        TemplateName NVARCHAR(100) NOT NULL,
+        FlightNumberPrefix NVARCHAR(10) NOT NULL, -- e.g., "AA"
+        RouteId INT NOT NULL,
+        AircraftId INT,
+        RecurrenceType NVARCHAR(20) NOT NULL, -- Daily, Weekly, Monthly
+        DaysOfWeek NVARCHAR(50), -- e.g., "Mon,Wed,Fri" for weekly
+        DayOfMonth INT, -- For monthly (1-31)
+        StartDate DATE NOT NULL,
+        EndDate DATE,
+        DepartureTime TIME NOT NULL,
+        ArrivalTime TIME NOT NULL,
+        EconomyPrice DECIMAL(10, 2),
+        BusinessPrice DECIMAL(10, 2),
+        FirstClassPrice DECIMAL(10, 2),
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CreatedBy INT,
+        CONSTRAINT FK_FlightScheduleTemplates_Routes FOREIGN KEY (RouteId) REFERENCES Routes(RouteId),
+        CONSTRAINT FK_FlightScheduleTemplates_Aircraft FOREIGN KEY (AircraftId) REFERENCES Aircraft(AircraftId),
+        CONSTRAINT FK_FlightScheduleTemplates_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightNotifications
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightNotifications')
+BEGIN
+    CREATE TABLE FlightNotifications (
+        NotificationId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightId INT NOT NULL,
+        NotificationType NVARCHAR(50) NOT NULL, -- Delay, GateChange, Cancellation, Weather, Boarding
+        Message NVARCHAR(1000) NOT NULL,
+        Severity NVARCHAR(20) DEFAULT 'Info', -- Info, Warning, Critical
+        IsResolved BIT DEFAULT 0,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CreatedBy INT,
+        ResolvedAt DATETIME,
+        ResolvedBy INT,
+        CONSTRAINT FK_FlightNotifications_Flights FOREIGN KEY (FlightId) REFERENCES Flights(FlightId) ON DELETE CASCADE,
+        CONSTRAINT FK_FlightNotifications_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: WeatherAlerts
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WeatherAlerts')
+BEGIN
+    CREATE TABLE WeatherAlerts (
+        AlertId INT IDENTITY(1,1) PRIMARY KEY,
+        AirportId INT NOT NULL,
+        AlertType NVARCHAR(50) NOT NULL, -- Storm, Fog, Snow, Wind, Ice
+        Severity NVARCHAR(20) NOT NULL, -- Low, Medium, High, Severe
+        Description NVARCHAR(500),
+        StartTime DATETIME NOT NULL,
+        EndTime DATETIME,
+        IsActive BIT DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        CONSTRAINT FK_WeatherAlerts_Airports FOREIGN KEY (AirportId) REFERENCES Airports(AirportId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: GateAssignments
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'GateAssignments')
+BEGIN
+    CREATE TABLE GateAssignments (
+        AssignmentId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightId INT NOT NULL,
+        GateNumber NVARCHAR(10) NOT NULL,
+        GateType NVARCHAR(20), -- Departure, Arrival
+        ScheduledTime DATETIME NOT NULL,
+        ActualTime DATETIME,
+        Status NVARCHAR(20) DEFAULT 'Assigned', -- Assigned, InUse, Released
+        AssignedAt DATETIME DEFAULT GETDATE(),
+        AssignedBy INT,
+        CONSTRAINT FK_GateAssignments_Flights FOREIGN KEY (FlightId) REFERENCES Flights(FlightId) ON DELETE CASCADE,
+        CONSTRAINT FK_GateAssignments_AssignedBy FOREIGN KEY (AssignedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightDelayReasons
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightDelayReasons')
+BEGIN
+    CREATE TABLE FlightDelayReasons (
+        DelayId INT IDENTITY(1,1) PRIMARY KEY,
+        FlightId INT NOT NULL,
+        DelayType NVARCHAR(50) NOT NULL, -- Weather, Technical, Operational, AirTrafficControl, CrewIssue
+        DelayMinutes INT NOT NULL,
+        Reason NVARCHAR(500),
+        ReportedAt DATETIME DEFAULT GETDATE(),
+        ReportedBy INT,
+        CONSTRAINT FK_FlightDelayReasons_Flights FOREIGN KEY (FlightId) REFERENCES Flights(FlightId) ON DELETE CASCADE,
+        CONSTRAINT FK_FlightDelayReasons_ReportedBy FOREIGN KEY (ReportedBy) REFERENCES Users(UserId)
+    );
+END
+GO
+
+-- =============================================
+-- Table: FlightSequenceNumbers (For auto-generation)
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FlightSequenceNumbers')
+BEGIN
+    CREATE TABLE FlightSequenceNumbers (
+        SequenceId INT IDENTITY(1,1) PRIMARY KEY,
+        Prefix NVARCHAR(10) NOT NULL UNIQUE,
+        CurrentNumber INT DEFAULT 1000,
+        LastUpdated DATETIME DEFAULT GETDATE()
+    );
+    
+    -- Insert default prefixes
+    INSERT INTO FlightSequenceNumbers (Prefix, CurrentNumber) VALUES
+    ('AA', 1000),
+    ('DL', 2000),
+    ('UA', 3000),
+    ('WN', 4000);
+END
+GO
+
+-- =============================================
+-- Create Indexes for Performance
+-- =============================================
+CREATE NONCLUSTERED INDEX IX_RouteLayovers_RouteId ON RouteLayovers(RouteId);
+CREATE NONCLUSTERED INDEX IX_FlightScheduleTemplates_RouteId ON FlightScheduleTemplates(RouteId);
+CREATE NONCLUSTERED INDEX IX_FlightScheduleTemplates_RecurrenceType ON FlightScheduleTemplates(RecurrenceType);
+CREATE NONCLUSTERED INDEX IX_FlightNotifications_FlightId ON FlightNotifications(FlightId);
+CREATE NONCLUSTERED INDEX IX_FlightNotifications_NotificationType ON FlightNotifications(NotificationType);
+CREATE NONCLUSTERED INDEX IX_WeatherAlerts_AirportId ON WeatherAlerts(AirportId);
+CREATE NONCLUSTERED INDEX IX_WeatherAlerts_IsActive ON WeatherAlerts(IsActive);
+CREATE NONCLUSTERED INDEX IX_GateAssignments_FlightId ON GateAssignments(FlightId);
+CREATE NONCLUSTERED INDEX IX_GateAssignments_Status ON GateAssignments(Status);
+CREATE NONCLUSTERED INDEX IX_FlightDelayReasons_FlightId ON FlightDelayReasons(FlightId);
+GO
+
+-- =============================================
+-- Add columns to existing Flights table
+-- =============================================
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Flights') AND name = 'TemplateId')
+BEGIN
+    ALTER TABLE Flights ADD TemplateId INT NULL;
+    ALTER TABLE Flights ADD CONSTRAINT FK_Flights_Template FOREIGN KEY (TemplateId) REFERENCES FlightScheduleTemplates(TemplateId);
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Flights') AND name = 'DelayMinutes')
+BEGIN
+    ALTER TABLE Flights ADD DelayMinutes INT DEFAULT 0;
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Flights') AND name = 'BoardingStatus')
+BEGIN
+    ALTER TABLE Flights ADD BoardingStatus NVARCHAR(50) DEFAULT 'NotStarted'; -- NotStarted, Boarding, Completed, Closed
+END
+GO
+
+-- =============================================
+-- Sample Data - Flight Schedule Templates
+-- =============================================
+INSERT INTO FlightScheduleTemplates (TemplateName, FlightNumberPrefix, RouteId, RecurrenceType, DaysOfWeek, DepartureTime, ArrivalTime, StartDate, EndDate, EconomyPrice, BusinessPrice, FirstClassPrice, IsActive, CreatedBy)
+VALUES 
+    ('JFK-LAX Daily Morning', 'AA', 1, 'Daily', NULL, '08:00:00', '11:30:00', '2026-01-01', '2026-12-31', 299.99, 899.99, 1499.99, 1, NULL),
+    ('JFK-LAX Weekly Evening', 'AA', 1, 'Weekly', 'Mon,Wed,Fri', '18:00:00', '21:30:00', '2026-01-01', '2026-12-31', 349.99, 999.99, 1699.99, 1, NULL),
+    ('LAX-JFK Red-Eye', 'AA', 2, 'Daily', NULL, '23:00:00', '07:00:00', '2026-01-01', '2026-12-31', 279.99, 849.99, 1399.99, 1, NULL);
+GO
+
+PRINT 'Enhanced Flight Management tables created successfully!';
+GO

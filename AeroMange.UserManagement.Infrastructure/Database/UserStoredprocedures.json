@@ -1,0 +1,421 @@
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- Stored Procedure: sp_CreateUser
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_CreateUser
+    @Email NVARCHAR(255),
+    @PasswordHash NVARCHAR(500),
+    @PasswordSalt NVARCHAR(500),
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(20),
+    @DateOfBirth DATE,
+    @Gender NVARCHAR(10),
+    @RoleId INT,
+    @EmailVerificationToken NVARCHAR(500),
+    @EmailVerificationTokenExpiry DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        
+        -- Check if email already exists
+        IF EXISTS (SELECT 1 FROM Users WHERE Email = @Email)
+        BEGIN
+            RAISERROR('Email already exists', 16, 1);
+            RETURN;
+        END
+        
+        -- Insert user
+        INSERT INTO Users (Email, PasswordHash, PasswordSalt, FirstName, LastName, 
+                          PhoneNumber, DateOfBirth, Gender, RoleId, 
+                          EmailVerificationToken, EmailVerificationTokenExpiry)
+        VALUES (@Email, @PasswordHash, @PasswordSalt, @FirstName, @LastName, 
+                @PhoneNumber, @DateOfBirth, @Gender, @RoleId, 
+                @EmailVerificationToken, @EmailVerificationTokenExpiry);
+        
+        DECLARE @UserId INT = SCOPE_IDENTITY();
+        
+        -- Create user profile
+        INSERT INTO UserProfiles (UserId)
+        VALUES (@UserId);
+        
+        -- Return the created user
+        SELECT u.*, r.RoleName, up.ProfileId
+        FROM Users u
+        INNER JOIN Roles r ON u.RoleId = r.RoleId
+        LEFT JOIN UserProfiles up ON u.UserId = up.UserId
+        WHERE u.UserId = @UserId;
+        
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_GetUserByEmail
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetUserByEmail
+    @Email NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT u.*, r.RoleName, up.*
+    FROM Users u
+    INNER JOIN Roles r ON u.RoleId = r.RoleId
+    LEFT JOIN UserProfiles up ON u.UserId = up.UserId
+    WHERE u.Email = @Email AND u.IsActive = 1;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_GetUserById
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetUserById
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT u.*, r.RoleName, up.*
+    FROM Users u
+    INNER JOIN Roles r ON u.RoleId = r.RoleId
+    LEFT JOIN UserProfiles up ON u.UserId = up.UserId
+    WHERE u.UserId = @UserId AND u.IsActive = 1;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_UpdateUser
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdateUser
+    @UserId INT,
+    @FirstName NVARCHAR(100),
+    @LastName NVARCHAR(100),
+    @PhoneNumber NVARCHAR(20),
+    @DateOfBirth DATE,
+    @Gender NVARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE Users
+    SET FirstName = @FirstName,
+        LastName = @LastName,
+        PhoneNumber = @PhoneNumber,
+        DateOfBirth = @DateOfBirth,
+        Gender = @Gender,
+        UpdatedAt = GETDATE()
+    WHERE UserId = @UserId;
+    
+    SELECT u.*, r.RoleName
+    FROM Users u
+    INNER JOIN Roles r ON u.RoleId = r.RoleId
+    WHERE u.UserId = @UserId;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_UpdateUserProfile
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdateUserProfile
+    @UserId INT,
+    @PassportNumber NVARCHAR(50) = NULL,
+    @PassportExpiryDate DATE = NULL,
+    @Nationality NVARCHAR(50) = NULL,
+    @Address NVARCHAR(500) = NULL,
+    @City NVARCHAR(100) = NULL,
+    @State NVARCHAR(100) = NULL,
+    @Country NVARCHAR(100) = NULL,
+    @ZipCode NVARCHAR(20) = NULL,
+    @EmergencyContactName NVARCHAR(200) = NULL,
+    @EmergencyContactPhone NVARCHAR(20) = NULL,
+    @FrequentFlyerNumber NVARCHAR(50) = NULL,
+    @PreferredSeatType NVARCHAR(50) = NULL,
+    @MealPreference NVARCHAR(50) = NULL,
+    @ProfileImageUrl NVARCHAR(500) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE UserProfiles
+    SET PassportNumber = ISNULL(@PassportNumber, PassportNumber),
+        PassportExpiryDate = ISNULL(@PassportExpiryDate, PassportExpiryDate),
+        Nationality = ISNULL(@Nationality, Nationality),
+        Address = ISNULL(@Address, Address),
+        City = ISNULL(@City, City),
+        State = ISNULL(@State, State),
+        Country = ISNULL(@Country, Country),
+        ZipCode = ISNULL(@ZipCode, ZipCode),
+        EmergencyContactName = ISNULL(@EmergencyContactName, EmergencyContactName),
+        EmergencyContactPhone = ISNULL(@EmergencyContactPhone, EmergencyContactPhone),
+        FrequentFlyerNumber = ISNULL(@FrequentFlyerNumber, FrequentFlyerNumber),
+        PreferredSeatType = ISNULL(@PreferredSeatType, PreferredSeatType),
+        MealPreference = ISNULL(@MealPreference, MealPreference),
+        ProfileImageUrl = ISNULL(@ProfileImageUrl, ProfileImageUrl),
+        UpdatedAt = GETDATE()
+    WHERE UserId = @UserId;
+    
+    SELECT * FROM UserProfiles WHERE UserId = @UserId;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_VerifyEmail
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_VerifyEmail
+    @Token NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @UserId INT;
+    
+    SELECT @UserId = UserId
+    FROM Users
+    WHERE EmailVerificationToken = @Token
+      AND EmailVerificationTokenExpiry > GETDATE()
+      AND IsEmailVerified = 0;
+    
+    IF @UserId IS NOT NULL
+    BEGIN
+        UPDATE Users
+        SET IsEmailVerified = 1,
+            EmailVerificationToken = NULL,
+            EmailVerificationTokenExpiry = NULL,
+            UpdatedAt = GETDATE()
+        WHERE UserId = @UserId;
+        
+        SELECT 1 AS Success, 'Email verified successfully' AS Message;
+    END
+    ELSE
+    BEGIN
+        SELECT 0 AS Success, 'Invalid or expired verification token' AS Message;
+    END
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_SetPasswordResetToken
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_SetPasswordResetToken
+    @Email NVARCHAR(255),
+    @Token NVARCHAR(500),
+    @Expiry DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE Users
+    SET PasswordResetToken = @Token,
+        PasswordResetTokenExpiry = @Expiry,
+        UpdatedAt = GETDATE()
+    WHERE Email = @Email AND IsActive = 1;
+    
+    IF @@ROWCOUNT > 0
+        SELECT 1 AS Success;
+    ELSE
+        SELECT 0 AS Success;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_ResetPassword
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_ResetPassword
+    @Token NVARCHAR(500),
+    @PasswordHash NVARCHAR(500),
+    @PasswordSalt NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @UserId INT;
+    
+    SELECT @UserId = UserId
+    FROM Users
+    WHERE PasswordResetToken = @Token
+      AND PasswordResetTokenExpiry > GETDATE()
+      AND IsActive = 1;
+    
+    IF @UserId IS NOT NULL
+    BEGIN
+        UPDATE Users
+        SET PasswordHash = @PasswordHash,
+            PasswordSalt = @PasswordSalt,
+            PasswordResetToken = NULL,
+            PasswordResetTokenExpiry = NULL,
+            UpdatedAt = GETDATE()
+        WHERE UserId = @UserId;
+        
+        SELECT 1 AS Success, 'Password reset successfully' AS Message;
+    END
+    ELSE
+    BEGIN
+        SELECT 0 AS Success, 'Invalid or expired reset token' AS Message;
+    END
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_UpdateLastLogin
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_UpdateLastLogin
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE Users
+    SET LastLoginAt = GETDATE()
+    WHERE UserId = @UserId;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_SaveRefreshToken
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_SaveRefreshToken
+    @UserId INT,
+    @Token NVARCHAR(500),
+    @ExpiresAt DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Revoke old tokens
+    UPDATE RefreshTokens
+    SET IsRevoked = 1,
+        RevokedAt = GETDATE()
+    WHERE UserId = @UserId AND IsRevoked = 0;
+    
+    -- Insert new token
+    INSERT INTO RefreshTokens (UserId, Token, ExpiresAt)
+    VALUES (@UserId, @Token, @ExpiresAt);
+    
+    SELECT SCOPE_IDENTITY() AS TokenId;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_GetRefreshToken
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetRefreshToken
+    @Token NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT *
+    FROM RefreshTokens
+    WHERE Token = @Token
+      AND IsRevoked = 0
+      AND ExpiresAt > GETDATE();
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_RevokeRefreshToken
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_RevokeRefreshToken
+    @Token NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE RefreshTokens
+    SET IsRevoked = 1,
+        RevokedAt = GETDATE()
+    WHERE Token = @Token;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_GetAllUsers
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetAllUsers
+    @PageNumber INT = 1,
+    @PageSize INT = 10,
+    @SearchTerm NVARCHAR(100) = NULL,
+    @RoleId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT u.*, r.RoleName,
+           COUNT(*) OVER() AS TotalRecords
+    FROM Users u
+    INNER JOIN Roles r ON u.RoleId = r.RoleId
+    WHERE u.IsActive = 1
+      AND (@SearchTerm IS NULL OR 
+           u.FirstName LIKE '%' + @SearchTerm + '%' OR 
+           u.LastName LIKE '%' + @SearchTerm + '%' OR 
+           u.Email LIKE '%' + @SearchTerm + '%')
+      AND (@RoleId IS NULL OR u.RoleId = @RoleId)
+    ORDER BY u.CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_DeleteUser (Soft Delete)
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_DeleteUser
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE Users
+    SET IsActive = 0,
+        UpdatedAt = GETDATE()
+    WHERE UserId = @UserId;
+    
+    SELECT @@ROWCOUNT AS Success;
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_CreateAuditLog
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_CreateAuditLog
+    @UserId INT = NULL,
+    @Action NVARCHAR(100),
+    @Entity NVARCHAR(100) = NULL,
+    @EntityId INT = NULL,
+    @OldValues NVARCHAR(MAX) = NULL,
+    @NewValues NVARCHAR(MAX) = NULL,
+    @IpAddress NVARCHAR(50) = NULL,
+    @UserAgent NVARCHAR(500) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO AuditLogs (UserId, Action, Entity, EntityId, OldValues, NewValues, IpAddress, UserAgent)
+    VALUES (@UserId, @Action, @Entity, @EntityId, @OldValues, @NewValues, @IpAddress, @UserAgent);
+END
+GO
+
+-- =============================================
+-- Stored Procedure: sp_GetAllRoles
+-- =============================================
+CREATE OR ALTER PROCEDURE sp_GetAllRoles
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT * FROM Roles WHERE IsActive = 1;
+END
+GO

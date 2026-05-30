@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AeroManage.Infrastructure\AeroManage.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
+    <ProjectReference Include="..\AeroManage.UserManagement.Domain\AeroManage.UserManagement.Domain.csproj" />
+    <ProjectReference Include="..\AeroMange.UserManagement.Infrastructure\AeroMange.UserManagement.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

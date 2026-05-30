@@ -1,0 +1,1101 @@
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- AIRPORT STORED PROCEDURES
+-- =============================================
+
+-- Create Airport
+CREATE OR ALTER PROCEDURE sp_CreateAirport
+    @AirportCode NVARCHAR(10),
+    @ICAOCode NVARCHAR(10) = NULL,
+    @AirportName NVARCHAR(200),
+    @City NVARCHAR(100),
+    @State NVARCHAR(100) = NULL,
+    @Country NVARCHAR(100),
+    @Latitude DECIMAL(10, 7) = NULL,
+    @Longitude DECIMAL(10, 7) = NULL,
+    @Timezone NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    IF EXISTS (SELECT 1 FROM Airports WHERE AirportCode = @AirportCode)
+    BEGIN
+        RAISERROR('Airport code already exists', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO Airports (AirportCode, ICAOCode, AirportName, City, State, Country, Latitude, Longitude, Timezone)
+    VALUES (@AirportCode, @ICAOCode, @AirportName, @City, @State, @Country, @Latitude, @Longitude, @Timezone);
+    
+    SELECT * FROM Airports WHERE AirportId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get All Airports
+CREATE OR ALTER PROCEDURE sp_GetAllAirports
+    @PageNumber INT = 1,
+    @PageSize INT = 50,
+    @SearchTerm NVARCHAR(100) = NULL,
+    @Country NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT *,
+           COUNT(*) OVER() AS TotalRecords
+    FROM Airports
+    WHERE IsActive = 1
+      AND (@SearchTerm IS NULL OR 
+           AirportCode LIKE '%' + @SearchTerm + '%' OR 
+           AirportName LIKE '%' + @SearchTerm + '%' OR 
+           City LIKE '%' + @SearchTerm + '%')
+      AND (@Country IS NULL OR Country = @Country)
+    ORDER BY AirportName
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- Get Airport By Id
+CREATE OR ALTER PROCEDURE sp_GetAirportById
+    @AirportId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT * FROM Airports WHERE AirportId = @AirportId AND IsActive = 1;
+END
+GO
+
+-- =============================================
+-- AIRCRAFT STORED PROCEDURES
+-- =============================================
+
+-- Create Aircraft
+CREATE OR ALTER PROCEDURE sp_CreateAircraft
+    @RegistrationNumber NVARCHAR(50),
+    @AircraftType NVARCHAR(100),
+    @Manufacturer NVARCHAR(100) = NULL,
+    @Model NVARCHAR(100) = NULL,
+    @YearManufactured INT = NULL,
+    @TotalSeats INT,
+    @EconomySeats INT,
+    @BusinessSeats INT,
+    @FirstClassSeats INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    IF EXISTS (SELECT 1 FROM Aircraft WHERE RegistrationNumber = @RegistrationNumber)
+    BEGIN
+        RAISERROR('Aircraft registration number already exists', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO Aircraft (RegistrationNumber, AircraftType, Manufacturer, Model, YearManufactured, 
+                         TotalSeats, EconomySeats, BusinessSeats, FirstClassSeats)
+    VALUES (@RegistrationNumber, @AircraftType, @Manufacturer, @Model, @YearManufactured,
+            @TotalSeats, @EconomySeats, @BusinessSeats, @FirstClassSeats);
+    
+    SELECT * FROM Aircraft WHERE AircraftId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get All Aircraft
+CREATE OR ALTER PROCEDURE sp_GetAllAircraft
+    @PageNumber INT = 1,
+    @PageSize INT = 50,
+    @Status NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT *,
+           COUNT(*) OVER() AS TotalRecords
+    FROM Aircraft
+    WHERE IsActive = 1
+      AND (@Status IS NULL OR CurrentStatus = @Status)
+    ORDER BY RegistrationNumber
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- Get Aircraft By Id
+CREATE OR ALTER PROCEDURE sp_GetAircraftById
+    @AircraftId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT * FROM Aircraft WHERE AircraftId = @AircraftId AND IsActive = 1;
+END
+GO
+
+-- Update Aircraft Status
+CREATE OR ALTER PROCEDURE sp_UpdateAircraftStatus
+    @AircraftId INT,
+    @Status NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE Aircraft
+    SET CurrentStatus = @Status,
+        UpdatedAt = GETDATE()
+    WHERE AircraftId = @AircraftId;
+    
+    SELECT * FROM Aircraft WHERE AircraftId = @AircraftId;
+END
+GO
+
+-- =============================================
+-- ROUTE STORED PROCEDURES
+-- =============================================
+
+-- Create Route
+CREATE OR ALTER PROCEDURE sp_CreateRoute
+    @RouteCode NVARCHAR(20),
+    @OriginAirportId INT,
+    @DestinationAirportId INT,
+    @Distance INT = NULL,
+    @EstimatedDuration INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    IF EXISTS (SELECT 1 FROM Routes WHERE RouteCode = @RouteCode)
+    BEGIN
+        RAISERROR('Route code already exists', 16, 1);
+        RETURN;
+    END
+    
+    IF @OriginAirportId = @DestinationAirportId
+    BEGIN
+        RAISERROR('Origin and destination airports must be different', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO Routes (RouteCode, OriginAirportId, DestinationAirportId, Distance, EstimatedDuration)
+    VALUES (@RouteCode, @OriginAirportId, @DestinationAirportId, @Distance, @EstimatedDuration);
+    
+    SELECT r.*, 
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity
+    FROM Routes r
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE r.RouteId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get All Routes
+CREATE OR ALTER PROCEDURE sp_GetAllRoutes
+    @PageNumber INT = 1,
+    @PageSize INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT r.*, 
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity, oa.Country AS OriginCountry,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity, da.Country AS DestinationCountry,
+           COUNT(*) OVER() AS TotalRecords
+    FROM Routes r
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE r.IsActive = 1
+    ORDER BY r.RouteCode
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- Get Route By Id
+CREATE OR ALTER PROCEDURE sp_GetRouteById
+    @RouteId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT r.*, 
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity, oa.Country AS OriginCountry,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity, da.Country AS DestinationCountry
+    FROM Routes r
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE r.RouteId = @RouteId AND r.IsActive = 1;
+END
+GO
+
+-- =============================================
+-- FLIGHT STORED PROCEDURES
+-- =============================================
+
+-- Create Flight
+CREATE OR ALTER PROCEDURE sp_CreateFlight
+    @FlightNumber NVARCHAR(20),
+    @RouteId INT,
+    @AircraftId INT,
+    @DepartureDateTime DATETIME,
+    @ArrivalDateTime DATETIME,
+    @EconomyPrice DECIMAL(10, 2),
+    @BusinessPrice DECIMAL(10, 2),
+    @FirstClassPrice DECIMAL(10, 2),
+    @DepartureGate NVARCHAR(10) = NULL,
+    @ArrivalGate NVARCHAR(10) = NULL,
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        
+        -- Get aircraft seat configuration
+        DECLARE @EconomySeats INT, @BusinessSeats INT, @FirstClassSeats INT;
+        
+        SELECT @EconomySeats = EconomySeats,
+               @BusinessSeats = BusinessSeats,
+               @FirstClassSeats = FirstClassSeats
+        FROM Aircraft
+        WHERE AircraftId = @AircraftId AND IsActive = 1;
+        
+        IF @EconomySeats IS NULL
+        BEGIN
+            RAISERROR('Aircraft not found or inactive', 16, 1);
+            RETURN;
+        END
+        
+        -- Create flight
+        INSERT INTO Flights (FlightNumber, RouteId, AircraftId, DepartureDateTime, ArrivalDateTime,
+                            EconomyPrice, BusinessPrice, FirstClassPrice, DepartureGate, ArrivalGate,
+                            AvailableEconomySeats, AvailableBusinessSeats, AvailableFirstClassSeats, CreatedBy)
+        VALUES (@FlightNumber, @RouteId, @AircraftId, @DepartureDateTime, @ArrivalDateTime,
+                @EconomyPrice, @BusinessPrice, @FirstClassPrice, @DepartureGate, @ArrivalGate,
+                @EconomySeats, @BusinessSeats, @FirstClassSeats, @CreatedBy);
+        
+        DECLARE @FlightId INT = SCOPE_IDENTITY();
+        
+        -- Return flight details
+        SELECT f.*,
+               r.RouteCode,
+               oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity,
+               da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity,
+               a.RegistrationNumber, a.AircraftType
+        FROM Flights f
+        INNER JOIN Routes r ON f.RouteId = r.RouteId
+        INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+        INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+        INNER JOIN Aircraft a ON f.AircraftId = a.AircraftId
+        WHERE f.FlightId = @FlightId;
+        
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- Search Flights
+CREATE OR ALTER PROCEDURE sp_SearchFlights
+    @OriginAirportId INT = NULL,
+    @DestinationAirportId INT = NULL,
+    @DepartureDate DATE = NULL,
+    @FlightNumber NVARCHAR(20) = NULL,
+    @PageNumber INT = 1,
+    @PageSize INT = 20
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT f.*,
+           r.RouteCode, r.Distance, r.EstimatedDuration,
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity, oa.Country AS OriginCountry,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity, da.Country AS DestinationCountry,
+           a.RegistrationNumber, a.AircraftType, a.TotalSeats,
+           COUNT(*) OVER() AS TotalRecords
+    FROM Flights f
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    INNER JOIN Aircraft a ON f.AircraftId = a.AircraftId
+    WHERE (@OriginAirportId IS NULL OR r.OriginAirportId = @OriginAirportId)
+      AND (@DestinationAirportId IS NULL OR r.DestinationAirportId = @DestinationAirportId)
+      AND (@DepartureDate IS NULL OR CAST(f.DepartureDateTime AS DATE) = @DepartureDate)
+      AND (@FlightNumber IS NULL OR f.FlightNumber LIKE '%' + @FlightNumber + '%')
+      AND f.DepartureDateTime >= GETDATE()
+    ORDER BY f.DepartureDateTime
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- Get Flight By Id
+CREATE OR ALTER PROCEDURE sp_GetFlightById
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT f.*,
+           r.RouteCode, r.Distance, r.EstimatedDuration,
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity, oa.Country AS OriginCountry,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity, da.Country AS DestinationCountry,
+           a.RegistrationNumber, a.AircraftType, a.TotalSeats, a.EconomySeats, a.BusinessSeats, a.FirstClassSeats
+    FROM Flights f
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    INNER JOIN Aircraft a ON f.AircraftId = a.AircraftId
+    WHERE f.FlightId = @FlightId;
+END
+GO
+
+-- Update Flight Status
+CREATE OR ALTER PROCEDURE sp_UpdateFlightStatus
+    @FlightId INT,
+    @NewStatus NVARCHAR(50),
+    @Reason NVARCHAR(500) = NULL,
+    @ChangedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        
+        DECLARE @OldStatus NVARCHAR(50);
+        SELECT @OldStatus = FlightStatus FROM Flights WHERE FlightId = @FlightId;
+        
+        -- Update flight status
+        UPDATE Flights
+        SET FlightStatus = @NewStatus,
+            UpdatedAt = GETDATE()
+        WHERE FlightId = @FlightId;
+        
+        -- Log status change
+        INSERT INTO FlightStatusHistory (FlightId, OldStatus, NewStatus, Reason, ChangedBy)
+        VALUES (@FlightId, @OldStatus, @NewStatus, @Reason, @ChangedBy);
+        
+        -- Update aircraft status based on flight status
+        IF @NewStatus = 'Departed' OR @NewStatus = 'InFlight'
+        BEGIN
+            UPDATE Aircraft
+            SET CurrentStatus = 'InFlight'
+            WHERE AircraftId = (SELECT AircraftId FROM Flights WHERE FlightId = @FlightId);
+        END
+        ELSE IF @NewStatus = 'Landed'
+        BEGIN
+            UPDATE Aircraft
+            SET CurrentStatus = 'Available'
+            WHERE AircraftId = (SELECT AircraftId FROM Flights WHERE FlightId = @FlightId);
+        END
+        
+        SELECT * FROM Flights WHERE FlightId = @FlightId;
+        
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+-- Assign Crew to Flight
+CREATE OR ALTER PROCEDURE sp_AssignFlightCrew
+    @FlightId INT,
+    @UserId INT,
+    @CrewRole NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Check if already assigned
+    IF EXISTS (SELECT 1 FROM FlightCrew WHERE FlightId = @FlightId AND UserId = @UserId)
+    BEGIN
+        RAISERROR('Crew member already assigned to this flight', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO FlightCrew (FlightId, UserId, CrewRole)
+    VALUES (@FlightId, @UserId, @CrewRole);
+    
+    SELECT fc.*, u.FirstName, u.LastName, u.Email
+    FROM FlightCrew fc
+    INNER JOIN Users u ON fc.UserId = u.UserId
+    WHERE fc.FlightCrewId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get Flight Crew
+CREATE OR ALTER PROCEDURE sp_GetFlightCrew
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT fc.*, u.FirstName, u.LastName, u.Email, u.PhoneNumber
+    FROM FlightCrew fc
+    INNER JOIN Users u ON fc.UserId = u.UserId
+    WHERE fc.FlightId = @FlightId
+    ORDER BY fc.CrewRole;
+END
+GO
+
+-- Get Flight Status History
+CREATE OR ALTER PROCEDURE sp_GetFlightStatusHistory
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT fsh.*, u.FirstName + ' ' + u.LastName AS ChangedByName
+    FROM FlightStatusHistory fsh
+    LEFT JOIN Users u ON fsh.ChangedBy = u.UserId
+    WHERE fsh.FlightId = @FlightId
+    ORDER BY fsh.ChangedAt DESC;
+END
+GO
+
+PRINT 'Flight Management Module stored procedures created successfully!';
+GO
+ 
+
+
+
+
+
+
+
+USE AirlineManagementDB;
+GO
+
+-- =============================================
+-- ROUTE LAYOVER PROCEDURES
+-- =============================================
+
+-- Add Layover to Route
+CREATE OR ALTER PROCEDURE sp_AddRouteLayover
+    @RouteId INT,
+    @AirportId INT,
+    @LayoverSequence INT,
+    @MinimumLayoverMinutes INT = 60,
+    @MaximumLayoverMinutes INT = 240
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO RouteLayovers (RouteId, AirportId, LayoverSequence, MinimumLayoverMinutes, MaximumLayoverMinutes)
+    VALUES (@RouteId, @AirportId, @LayoverSequence, @MinimumLayoverMinutes, @MaximumLayoverMinutes);
+    
+    SELECT rl.*, a.AirportCode, a.AirportName, a.City
+    FROM RouteLayovers rl
+    INNER JOIN Airports a ON rl.AirportId = a.AirportId
+    WHERE rl.LayoverId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get Route with Layovers
+CREATE OR ALTER PROCEDURE sp_GetRouteWithLayovers
+    @RouteId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Get route details
+    SELECT r.*, 
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity
+    FROM Routes r
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE r.RouteId = @RouteId;
+    
+    -- Get layovers
+    SELECT rl.*, a.AirportCode, a.AirportName, a.City, a.Country
+    FROM RouteLayovers rl
+    INNER JOIN Airports a ON rl.AirportId = a.AirportId
+    WHERE rl.RouteId = @RouteId AND rl.IsActive = 1
+    ORDER BY rl.LayoverSequence;
+END
+GO
+
+-- =============================================
+-- FLIGHT NUMBER GENERATION
+-- =============================================
+
+-- Generate Next Flight Number
+CREATE OR ALTER PROCEDURE sp_GenerateFlightNumber
+    @Prefix NVARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @NextNumber INT;
+    DECLARE @FlightNumber NVARCHAR(20);
+    
+    BEGIN TRANSACTION;
+    
+    -- Get and increment the sequence
+    UPDATE FlightSequenceNumbers
+    SET CurrentNumber = CurrentNumber + 1,
+        LastUpdated = GETDATE(),
+        @NextNumber = CurrentNumber + 1
+    WHERE Prefix = @Prefix;
+    
+    -- If prefix doesn't exist, create it
+    IF @@ROWCOUNT = 0
+    BEGIN
+        INSERT INTO FlightSequenceNumbers (Prefix, CurrentNumber)
+        VALUES (@Prefix, 1001);
+        SET @NextNumber = 1001;
+    END
+    
+    SET @FlightNumber = @Prefix + CAST(@NextNumber AS NVARCHAR(10));
+    
+    COMMIT TRANSACTION;
+    
+    SELECT @FlightNumber AS FlightNumber, @NextNumber AS SequenceNumber;
+END
+GO
+
+-- =============================================
+-- FLIGHT SCHEDULE TEMPLATE PROCEDURES
+-- =============================================
+
+-- Create Flight Schedule Template
+CREATE OR ALTER PROCEDURE sp_CreateFlightScheduleTemplate
+    @TemplateName NVARCHAR(100),
+    @FlightNumberPrefix NVARCHAR(10),
+    @RouteId INT,
+    @AircraftId INT,
+    @RecurrenceType NVARCHAR(20),
+    @DaysOfWeek NVARCHAR(50) = NULL,
+    @DayOfMonth INT = NULL,
+    @StartDate DATE,
+    @EndDate DATE = NULL,
+    @DepartureTime TIME,
+    @ArrivalTime TIME,
+    @EconomyPrice DECIMAL(10, 2),
+    @BusinessPrice DECIMAL(10, 2),
+    @FirstClassPrice DECIMAL(10, 2),
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO FlightScheduleTemplates (
+        TemplateName, FlightNumberPrefix, RouteId, AircraftId, RecurrenceType,
+        DaysOfWeek, DayOfMonth, StartDate, EndDate, DepartureTime, ArrivalTime,
+        EconomyPrice, BusinessPrice, FirstClassPrice, CreatedBy
+    )
+    VALUES (
+        @TemplateName, @FlightNumberPrefix, @RouteId, @AircraftId, @RecurrenceType,
+        @DaysOfWeek, @DayOfMonth, @StartDate, @EndDate, @DepartureTime, @ArrivalTime,
+        @EconomyPrice, @BusinessPrice, @FirstClassPrice, @CreatedBy
+    );
+    
+    SELECT * FROM FlightScheduleTemplates WHERE TemplateId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get All Schedule Templates
+CREATE OR ALTER PROCEDURE sp_GetAllScheduleTemplates
+    @PageNumber INT = 1,
+    @PageSize INT = 20,
+    @IsActive BIT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
+    
+    SELECT t.*,
+           r.RouteCode,
+           oa.AirportCode AS OriginCode, oa.City AS OriginCity,
+           da.AirportCode AS DestinationCode, da.City AS DestinationCity,
+           a.RegistrationNumber, a.AircraftType,
+           COUNT(*) OVER() AS TotalRecords
+    FROM FlightScheduleTemplates t
+    INNER JOIN Routes r ON t.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    LEFT JOIN Aircraft a ON t.AircraftId = a.AircraftId
+    WHERE (@IsActive IS NULL OR t.IsActive = @IsActive)
+    ORDER BY t.TemplateName
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+-- Generate Flights from Template
+CREATE OR ALTER PROCEDURE sp_GenerateFlightsFromTemplate
+    @TemplateId INT,
+    @GenerateFromDate DATE,
+    @GenerateToDate DATE,
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @TemplateName NVARCHAR(100);
+    DECLARE @FlightNumberPrefix NVARCHAR(10);
+    DECLARE @RouteId INT;
+    DECLARE @AircraftId INT;
+    DECLARE @RecurrenceType NVARCHAR(20);
+    DECLARE @DaysOfWeek NVARCHAR(50);
+    DECLARE @DayOfMonth INT;
+    DECLARE @DepartureTime TIME;
+    DECLARE @ArrivalTime TIME;
+    DECLARE @EconomyPrice DECIMAL(10, 2);
+    DECLARE @BusinessPrice DECIMAL(10, 2);
+    DECLARE @FirstClassPrice DECIMAL(10, 2);
+    
+    DECLARE @CurrentDate DATE = @GenerateFromDate;
+    DECLARE @FlightNumber NVARCHAR(20);
+    DECLARE @DepartureDateTime DATETIME;
+    DECLARE @ArrivalDateTime DATETIME;
+    DECLARE @FlightsCreated INT = 0;
+    
+    -- Get template details
+    SELECT 
+        @TemplateName = TemplateName,
+        @FlightNumberPrefix = FlightNumberPrefix,
+        @RouteId = RouteId,
+        @AircraftId = AircraftId,
+        @RecurrenceType = RecurrenceType,
+        @DaysOfWeek = DaysOfWeek,
+        @DayOfMonth = DayOfMonth,
+        @DepartureTime = DepartureTime,
+        @ArrivalTime = ArrivalTime,
+        @EconomyPrice = EconomyPrice,
+        @BusinessPrice = BusinessPrice,
+        @FirstClassPrice = FirstClassPrice
+    FROM FlightScheduleTemplates
+    WHERE TemplateId = @TemplateId AND IsActive = 1;
+    
+    IF @TemplateName IS NULL
+    BEGIN
+        RAISERROR('Template not found or inactive', 16, 1);
+        RETURN;
+    END
+    
+    -- Loop through dates
+    WHILE @CurrentDate <= @GenerateToDate
+    BEGIN
+        DECLARE @ShouldCreate BIT = 0;
+        
+        -- Check if flight should be created based on recurrence
+        IF @RecurrenceType = 'Daily'
+        BEGIN
+            SET @ShouldCreate = 1;
+        END
+        ELSE IF @RecurrenceType = 'Weekly'
+        BEGIN
+            DECLARE @DayName NVARCHAR(10) = LEFT(DATENAME(WEEKDAY, @CurrentDate), 3);
+            IF CHARINDEX(@DayName, @DaysOfWeek) > 0
+                SET @ShouldCreate = 1;
+        END
+        ELSE IF @RecurrenceType = 'Monthly'
+        BEGIN
+            IF DAY(@CurrentDate) = @DayOfMonth
+                SET @ShouldCreate = 1;
+        END
+        
+        -- Create flight if conditions met
+        IF @ShouldCreate = 1
+        BEGIN
+            -- Generate flight number
+            EXEC sp_GenerateFlightNumber @FlightNumberPrefix;
+            
+            -- Get the generated flight number
+            SELECT TOP 1 @FlightNumber = @FlightNumberPrefix + CAST(CurrentNumber AS NVARCHAR(10))
+            FROM FlightSequenceNumbers
+            WHERE Prefix = @FlightNumberPrefix;
+            
+            SET @DepartureDateTime = CAST(@CurrentDate AS DATETIME) + CAST(@DepartureTime AS DATETIME);
+            SET @ArrivalDateTime = CAST(@CurrentDate AS DATETIME) + CAST(@ArrivalTime AS DATETIME);
+            
+            -- If arrival is next day
+            IF @ArrivalTime < @DepartureTime
+                SET @ArrivalDateTime = DATEADD(DAY, 1, @ArrivalDateTime);
+            
+            -- Create the flight
+            BEGIN TRY
+                EXEC sp_CreateFlight
+                    @FlightNumber = @FlightNumber,
+                    @RouteId = @RouteId,
+                    @AircraftId = @AircraftId,
+                    @DepartureDateTime = @DepartureDateTime,
+                    @ArrivalDateTime = @ArrivalDateTime,
+                    @EconomyPrice = @EconomyPrice,
+                    @BusinessPrice = @BusinessPrice,
+                    @FirstClassPrice = @FirstClassPrice,
+                    @CreatedBy = @CreatedBy;
+                
+                SET @FlightsCreated = @FlightsCreated + 1;
+            END TRY
+            BEGIN CATCH
+                -- Log error but continue
+                PRINT 'Error creating flight for date: ' + CAST(@CurrentDate AS NVARCHAR(20));
+            END CATCH
+        END
+        
+        SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
+    END
+    
+    SELECT @FlightsCreated AS FlightsCreated;
+END
+GO
+
+-- =============================================
+-- FLIGHT NOTIFICATION PROCEDURES
+-- =============================================
+
+-- Create Flight Notification
+CREATE OR ALTER PROCEDURE sp_CreateFlightNotification
+    @FlightId INT,
+    @NotificationType NVARCHAR(50),
+    @Message NVARCHAR(1000),
+    @Severity NVARCHAR(20) = 'Info',
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO FlightNotifications (FlightId, NotificationType, Message, Severity, CreatedBy)
+    VALUES (@FlightId, @NotificationType, @Message, @Severity, @CreatedBy);
+    
+    SELECT * FROM FlightNotifications WHERE NotificationId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get Flight Notifications
+CREATE OR ALTER PROCEDURE sp_GetFlightNotifications
+    @FlightId INT,
+    @IncludeResolved BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT fn.*, 
+           u.FirstName + ' ' + u.LastName AS CreatedByName
+    FROM FlightNotifications fn
+    LEFT JOIN Users u ON fn.CreatedBy = u.UserId
+    WHERE fn.FlightId = @FlightId
+      AND (@IncludeResolved = 1 OR fn.IsResolved = 0)
+    ORDER BY fn.CreatedAt DESC;
+END
+GO
+
+-- Resolve Notification
+CREATE OR ALTER PROCEDURE sp_ResolveFlightNotification
+    @NotificationId INT,
+    @ResolvedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE FlightNotifications
+    SET IsResolved = 1,
+        ResolvedAt = GETDATE(),
+        ResolvedBy = @ResolvedBy
+    WHERE NotificationId = @NotificationId;
+    
+    SELECT * FROM FlightNotifications WHERE NotificationId = @NotificationId;
+END
+GO
+
+-- =============================================
+-- WEATHER ALERT PROCEDURES
+-- =============================================
+
+-- Create Weather Alert
+CREATE OR ALTER PROCEDURE sp_CreateWeatherAlert
+    @AirportId INT,
+    @AlertType NVARCHAR(50),
+    @Severity NVARCHAR(20),
+    @Description NVARCHAR(500),
+    @StartTime DATETIME,
+    @EndTime DATETIME = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO WeatherAlerts (AirportId, AlertType, Severity, Description, StartTime, EndTime)
+    VALUES (@AirportId, @AlertType, @Severity, @Description, @StartTime, @EndTime);
+    
+    SELECT wa.*, a.AirportCode, a.AirportName, a.City
+    FROM WeatherAlerts wa
+    INNER JOIN Airports a ON wa.AirportId = a.AirportId
+    WHERE wa.AlertId = SCOPE_IDENTITY();
+END
+GO
+
+-- Get Active Weather Alerts
+CREATE OR ALTER PROCEDURE sp_GetActiveWeatherAlerts
+    @AirportId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT wa.*, a.AirportCode, a.AirportName, a.City, a.Country
+    FROM WeatherAlerts wa
+    INNER JOIN Airports a ON wa.AirportId = a.AirportId
+    WHERE wa.IsActive = 1
+      AND (@AirportId IS NULL OR wa.AirportId = @AirportId)
+      AND (wa.EndTime IS NULL OR wa.EndTime > GETDATE())
+    ORDER BY wa.Severity DESC, wa.StartTime DESC;
+END
+GO
+
+-- Get Weather Impacted Flights
+CREATE OR ALTER PROCEDURE sp_GetWeatherImpactedFlights
+    @AlertId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @AirportId INT;
+    
+    SELECT @AirportId = AirportId FROM WeatherAlerts WHERE AlertId = @AlertId;
+    
+    SELECT f.*, 
+           r.RouteCode,
+           oa.AirportCode AS OriginCode, oa.City AS OriginCity,
+           da.AirportCode AS DestinationCode, da.City AS DestinationCity
+    FROM Flights f
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    WHERE (r.OriginAirportId = @AirportId OR r.DestinationAirportId = @AirportId)
+      AND f.DepartureDateTime >= GETDATE()
+      AND f.FlightStatus NOT IN ('Landed', 'Cancelled')
+    ORDER BY f.DepartureDateTime;
+END
+GO
+
+-- =============================================
+-- GATE ASSIGNMENT PROCEDURES
+-- =============================================
+
+-- Assign Gate to Flight
+CREATE OR ALTER PROCEDURE sp_AssignGate
+    @FlightId INT,
+    @GateNumber NVARCHAR(10),
+    @GateType NVARCHAR(20),
+    @ScheduledTime DATETIME,
+    @AssignedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Check if gate is available
+    IF EXISTS (
+        SELECT 1 FROM GateAssignments
+        WHERE GateNumber = @GateNumber
+          AND Status = 'InUse'
+          AND ScheduledTime = @ScheduledTime
+    )
+    BEGIN
+        RAISERROR('Gate is already assigned at this time', 16, 1);
+        RETURN;
+    END
+    
+    INSERT INTO GateAssignments (FlightId, GateNumber, GateType, ScheduledTime, AssignedBy)
+    VALUES (@FlightId, @GateNumber, @GateType, @ScheduledTime, @AssignedBy);
+    
+    -- Update flight table if departure gate
+    IF @GateType = 'Departure'
+    BEGIN
+        UPDATE Flights SET DepartureGate = @GateNumber WHERE FlightId = @FlightId;
+    END
+    ELSE IF @GateType = 'Arrival'
+    BEGIN
+        UPDATE Flights SET ArrivalGate = @GateNumber WHERE FlightId = @FlightId;
+    END
+    
+    SELECT * FROM GateAssignments WHERE AssignmentId = SCOPE_IDENTITY();
+END
+GO
+
+-- Change Flight Gate
+CREATE OR ALTER PROCEDURE sp_ChangeFlightGate
+    @FlightId INT,
+    @NewGateNumber NVARCHAR(10),
+    @GateType NVARCHAR(20),
+    @Reason NVARCHAR(500),
+    @ChangedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRANSACTION;
+    
+    DECLARE @OldGate NVARCHAR(10);
+    
+    -- Get current gate
+    IF @GateType = 'Departure'
+        SELECT @OldGate = DepartureGate FROM Flights WHERE FlightId = @FlightId;
+    ELSE
+        SELECT @OldGate = ArrivalGate FROM Flights WHERE FlightId = @FlightId;
+    
+    -- Update flight
+    IF @GateType = 'Departure'
+        UPDATE Flights SET DepartureGate = @NewGateNumber WHERE FlightId = @FlightId;
+    ELSE
+        UPDATE Flights SET ArrivalGate = @NewGateNumber WHERE FlightId = @FlightId;
+    
+    -- Create notification
+    DECLARE @Message NVARCHAR(1000) = 'Gate changed from ' + ISNULL(@OldGate, 'N/A') + ' to ' + @NewGateNumber + '. Reason: ' + ISNULL(@Reason, 'Not specified');
+    
+    EXEC sp_CreateFlightNotification
+        @FlightId = @FlightId,
+        @NotificationType = 'GateChange',
+        @Message = @Message,
+        @Severity = 'Warning',
+        @CreatedBy = @ChangedBy;
+    
+    COMMIT TRANSACTION;
+    
+    SELECT * FROM Flights WHERE FlightId = @FlightId;
+END
+GO
+
+-- =============================================
+-- FLIGHT DELAY PROCEDURES
+-- =============================================
+
+-- Report Flight Delay
+CREATE OR ALTER PROCEDURE sp_ReportFlightDelay
+    @FlightId INT,
+    @DelayType NVARCHAR(50),
+    @DelayMinutes INT,
+    @Reason NVARCHAR(500),
+    @ReportedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRANSACTION;
+    
+    -- Record delay
+    INSERT INTO FlightDelayReasons (FlightId, DelayType, DelayMinutes, Reason, ReportedBy)
+    VALUES (@FlightId, @DelayType, @DelayMinutes, @Reason, @ReportedBy);
+    
+    -- Update flight delay minutes
+    UPDATE Flights
+    SET DelayMinutes = ISNULL(DelayMinutes, 0) + @DelayMinutes,
+        FlightStatus = CASE WHEN @DelayMinutes > 15 THEN 'Delayed' ELSE FlightStatus END
+    WHERE FlightId = @FlightId;
+    
+    -- Create notification
+    DECLARE @Message NVARCHAR(1000) = 'Flight delayed by ' + CAST(@DelayMinutes AS NVARCHAR(10)) + ' minutes. Reason: ' + @Reason;
+    
+    EXEC sp_CreateFlightNotification
+        @FlightId = @FlightId,
+        @NotificationType = 'Delay',
+        @Message = @Message,
+        @Severity = CASE WHEN @DelayMinutes > 60 THEN 'Critical' WHEN @DelayMinutes > 30 THEN 'Warning' ELSE 'Info' END,
+        @CreatedBy = @ReportedBy;
+    
+    COMMIT TRANSACTION;
+    
+    SELECT * FROM Flights WHERE FlightId = @FlightId;
+END
+GO
+
+-- Get Flight Delay History
+CREATE OR ALTER PROCEDURE sp_GetFlightDelayHistory
+    @FlightId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT fdr.*, u.FirstName + ' ' + u.LastName AS ReportedByName
+    FROM FlightDelayReasons fdr
+    LEFT JOIN Users u ON fdr.ReportedBy = u.UserId
+    WHERE fdr.FlightId = @FlightId
+    ORDER BY fdr.ReportedAt DESC;
+END
+GO
+
+-- =============================================
+-- ENHANCED FLIGHT STATUS TRACKING
+-- =============================================
+
+-- Update Flight Boarding Status
+CREATE OR ALTER PROCEDURE sp_UpdateBoardingStatus
+    @FlightId INT,
+    @BoardingStatus NVARCHAR(50),
+    @UpdatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @OldStatus NVARCHAR(50);
+    SELECT @OldStatus = BoardingStatus FROM Flights WHERE FlightId = @FlightId;
+    
+    UPDATE Flights
+    SET BoardingStatus = @BoardingStatus,
+        FlightStatus = CASE 
+            WHEN @BoardingStatus = 'Boarding' THEN 'Boarding'
+            WHEN @BoardingStatus = 'Completed' THEN 'Boarding'
+            ELSE FlightStatus
+        END
+    WHERE FlightId = @FlightId;
+    
+    -- Log in status history
+    INSERT INTO FlightStatusHistory (FlightId, OldStatus, NewStatus, Reason, ChangedBy)
+    VALUES (@FlightId, @OldStatus, @BoardingStatus, 'Boarding status update', @UpdatedBy);
+    
+    SELECT * FROM Flights WHERE FlightId = @FlightId;
+END
+GO
+
+-- Get Real-Time Flight Dashboard
+CREATE OR ALTER PROCEDURE sp_GetFlightDashboard
+    @AirportId INT = NULL,
+    @Date DATE = NULL,
+    @Status NVARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SET @Date = ISNULL(@Date, CAST(GETDATE() AS DATE));
+    
+    SELECT f.*,
+           r.RouteCode,
+           oa.AirportCode AS OriginCode, oa.AirportName AS OriginName, oa.City AS OriginCity,
+           da.AirportCode AS DestinationCode, da.AirportName AS DestinationName, da.City AS DestinationCity,
+           a.RegistrationNumber, a.AircraftType,
+           (SELECT COUNT(*) FROM FlightNotifications WHERE FlightId = f.FlightId AND IsResolved = 0) AS ActiveNotifications,
+           (SELECT TOP 1 AlertType FROM WeatherAlerts wa 
+            WHERE (wa.AirportId = r.OriginAirportId OR wa.AirportId = r.DestinationAirportId)
+              AND wa.IsActive = 1) AS WeatherAlert
+    FROM Flights f
+    INNER JOIN Routes r ON f.RouteId = r.RouteId
+    INNER JOIN Airports oa ON r.OriginAirportId = oa.AirportId
+    INNER JOIN Airports da ON r.DestinationAirportId = da.AirportId
+    LEFT JOIN Aircraft a ON f.AircraftId = a.AircraftId
+    WHERE CAST(f.DepartureDateTime AS DATE) = @Date
+      AND (@AirportId IS NULL OR r.OriginAirportId = @AirportId OR r.DestinationAirportId = @AirportId)
+      AND (@Status IS NULL OR f.FlightStatus = @Status)
+    ORDER BY f.DepartureDateTime;
+END
+GO
+
+PRINT 'Enhanced Flight Management stored procedures created successfully!';
+GO

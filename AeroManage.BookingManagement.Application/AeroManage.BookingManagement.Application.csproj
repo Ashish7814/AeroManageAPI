@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.4.1" />
+    <PackageReference Include="iTextSharp" Version="5.5.13.5" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+	  <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="8.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="QRCoder" Version="1.7.0" />
+    <PackageReference Include="Stripe.net" Version="50.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AeroManage.BookingManagement.Infrastructure\AeroManage.BookingManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.Infrastructure\AeroManage.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
