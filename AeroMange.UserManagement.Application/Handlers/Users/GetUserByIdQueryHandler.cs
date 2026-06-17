@@ -1,7 +1,7 @@
 ﻿using AeroManage.UserManagement.Domain.Entities;
 using AeroMange.UserManagement.Application.DTOs;
 using AeroMange.UserManagement.Application.Queries.Users;
-using AeroMange.UserManagement.Infrastructure.Repositories.Interfaces;
+using AeroMange.UserManagement.Domain.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;

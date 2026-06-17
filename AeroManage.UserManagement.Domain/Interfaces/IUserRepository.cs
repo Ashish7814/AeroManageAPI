@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AeroMange.UserManagement.Infrastructure.Repositories.Interfaces
+namespace AeroMange.UserManagement.Domain.Interfaces
 {
     public interface IUserRepository
     {

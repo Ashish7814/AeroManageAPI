@@ -3,7 +3,7 @@ using AeroMange.Shared.Repositories;
 using AeroMange.UserManagement.Application.Commands.Auth;
 using AeroMange.UserManagement.Application.DTOs;
 using AeroMange.UserManagement.Application.Service;
-using AeroMange.UserManagement.Infrastructure.Repositories.Interfaces;
+using AeroMange.UserManagement.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using System;

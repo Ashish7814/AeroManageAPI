@@ -1,4 +1,5 @@
-﻿using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+﻿
+using AeroManage.FlightManagement.Domain.Interfaces;
 using AeroManage.Shared.DTos;
 using Dapper;
 using Microsoft.Data.SqlClient;

@@ -17,11 +17,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AeroManage.BookingManagement.Application\AeroManage.BookingManagement.Application.csproj" />
+    <ProjectReference Include="..\AeroManage.BookingManagement.Infrastructure\AeroManage.BookingManagement.Infrastructure.csproj" />
     <ProjectReference Include="..\AeroManage.FlightManagement.Application\AeroManage.FlightManagement.Application.csproj" />
-    <ProjectReference Include="..\AeroManage.FlightManagement.Domain\AeroManage.FlightManagement.Domain.csproj" />
+    <ProjectReference Include="..\AeroManage.FlightManagement.Infrastructure\AeroManage.FlightManagement.Infrastructure.csproj" />
     <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
-    <ProjectReference Include="..\AeroManage.UserManagement.Domain\AeroManage.UserManagement.Domain.csproj" />
     <ProjectReference Include="..\AeroMange.UserManagement.Application\AeroMange.UserManagement.Application.csproj" />
+    <ProjectReference Include="..\AeroMange.UserManagement.Infrastructure\AeroMange.UserManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

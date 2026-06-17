@@ -1,6 +1,5 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.Shared.Enums;
-using AeroManage.UserManagement.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;

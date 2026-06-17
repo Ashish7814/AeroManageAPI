@@ -1,5 +1,5 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
-using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.BookingManagement.Domain.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;

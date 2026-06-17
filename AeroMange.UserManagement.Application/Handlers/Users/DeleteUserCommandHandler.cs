@@ -1,7 +1,7 @@
 ﻿using AeroMange.Shared.Repositories;
 using AeroMange.UserManagement.Application.Commands.Users;
 using AeroMange.UserManagement.Application.DTOs;
-using AeroMange.UserManagement.Infrastructure.Repositories.Interfaces;
+using AeroMange.UserManagement.Domain.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;
