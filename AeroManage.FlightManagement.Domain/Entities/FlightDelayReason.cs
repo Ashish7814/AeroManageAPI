@@ -1,5 +1,4 @@
-﻿using AeroManage.UserManagement.Domain.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +17,6 @@ namespace AeroManage.FlightManagement.Domain.Entities
         public int? ReportedBy { get; set; }
 
         // Navigation properties
-        public User ReportedByName { get; set; }
+        public int ReportedByName { get; set; }
     }
 }

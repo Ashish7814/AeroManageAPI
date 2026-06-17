@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces
+namespace AeroManage.BookingManagement.Domain.Interfaces
 {
     public interface IPaymentRepository
     {

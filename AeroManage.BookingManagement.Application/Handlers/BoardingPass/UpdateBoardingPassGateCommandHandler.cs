@@ -1,7 +1,7 @@
 ﻿using AeroManage.BookingManagement.Application.Commands.BoardingPass;
 using AeroManage.BookingManagement.Application.DTOs;
 using AeroManage.BookingManagement.Application.Hubs;
-using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.BookingManagement.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;

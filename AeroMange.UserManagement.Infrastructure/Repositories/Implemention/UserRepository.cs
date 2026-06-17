@@ -1,5 +1,5 @@
 ﻿using AeroManage.UserManagement.Domain.Entities;
-using AeroMange.UserManagement.Infrastructure.Repositories.Interfaces;
+using AeroMange.UserManagement.Domain.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;

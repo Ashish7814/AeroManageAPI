@@ -1,5 +1,4 @@
-﻿using AeroManage.UserManagement.Domain.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -76,7 +75,7 @@ namespace AeroManage.FlightManagement.Domain.Entities
         public int FlightId { get; set; }
         public int UserId { get; set; }
 
-        public User users { get; set; }
+        public int userId { get; set; }
         //public string CrewRole { get; set; } // Pilot, CoPilot, FlightAttendant
         public DateTime AssignedAt { get; set; }
 
@@ -94,7 +93,7 @@ namespace AeroManage.FlightManagement.Domain.Entities
         public string OldStatus { get; set; }
         public string NewStatus { get; set; }
         public string Reason { get; set; }
-        public User ChangedBy { get; set; }
+        public int ChangedBy { get; set; }
         public DateTime ChangedAt { get; set; }
         public string ChangedByName { get; set; }
     }

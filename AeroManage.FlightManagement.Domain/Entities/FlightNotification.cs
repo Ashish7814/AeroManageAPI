@@ -1,5 +1,4 @@
-﻿using AeroManage.UserManagement.Domain.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +15,7 @@ namespace AeroManage.FlightManagement.Domain.Entities
         public string Severity { get; set; } // Info, Warning, Critical
         public bool IsResolved { get; set; }
         public DateTime CreatedAt { get; set; }
-        public User ChangedBy { get; set; }
+        public int ChangedBy { get; set; }
         public DateTime? ResolvedAt { get; set; }
 
     }
