@@ -1,5 +1,5 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;

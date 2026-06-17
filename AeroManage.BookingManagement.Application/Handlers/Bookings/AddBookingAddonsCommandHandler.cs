@@ -1,6 +1,6 @@
 ﻿using AeroManage.BookingManagement.Application.Commands.Bookings;
 using AeroManage.BookingManagement.Application.DTOs;
-using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.BookingManagement.Domain.Interfaces;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;

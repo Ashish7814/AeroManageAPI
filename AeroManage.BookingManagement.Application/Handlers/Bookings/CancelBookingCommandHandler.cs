@@ -2,7 +2,7 @@
 using AeroManage.BookingManagement.Application.DTOs;
 using AeroManage.BookingManagement.Application.Hubs;
 using AeroManage.BookingManagement.Application.Services.Interfaces;
-using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.BookingManagement.Domain.Interfaces;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
