@@ -1,6 +1,4 @@
-﻿using AeroManage.FlightManagement.Application.Services.Interfaces;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
-using AeroMange.Shared.Repositories;
+﻿using AeroManage.FlightManagement.Domain.Services.Interfaces;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using System;

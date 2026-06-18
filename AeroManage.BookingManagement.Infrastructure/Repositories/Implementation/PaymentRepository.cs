@@ -98,24 +98,89 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         // ==================== PROCESS REFUND ====================
 
-        public async Task<bool> ProcessRefundAsync(int paymentId, decimal refundAmount, DateTime refundDate)
+        public async Task<bool> ProcessRefundAsync(int paymentId, decimal refundAmount, DateTime refundDate, string stripeRefundId, string status)
         {
             using var connection = CreateConnection();
 
             var sql = @"
                 UPDATE Payments
                 SET RefundAmount = @RefundAmount,
-                    RefundDate = @RefundDate
+                    RefundDate = @RefundDate,
+                    StripeRefundId = @StripeRefundId,
+                    Status = @Status
                 WHERE PaymentId = @PaymentId";
 
             var rowsAffected = await connection.ExecuteAsync(sql, new
             {
                 PaymentId = paymentId,
                 RefundAmount = refundAmount,
-                RefundDate = refundDate
+                RefundDate = refundDate,
+                StripeRefundId = stripeRefundId,
+                Status = status
             });
 
             return rowsAffected > 0;
+        }
+
+        // ==================== REFUNDS ====================
+
+        public async Task<(int RefundId, string RefundReference)> CreateRefundRequestAsync(
+            int bookingId, int paymentId, decimal refundAmount, decimal cancellationFee,
+            string reason, string bankAccount, string bankName, int requestedBy)
+        {
+            using var connection = CreateConnection();
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_CreateRefundRequest",
+                new
+                {
+                    BookingId = bookingId,
+                    PaymentId = paymentId,
+                    RefundAmount = refundAmount,
+                    CancellationFee = cancellationFee,
+                    RefundReason = reason,
+                    BankAccountNumber = bankAccount,
+                    BankName = bankName,
+                    RequestedBy = requestedBy
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            return (result.RefundId, result.RefundReference);
+        }
+
+        public async Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, IDbConnection connection,
+         IDbTransaction transaction,
+         CancellationToken cancellationToken = default)
+        {
+            //var sql = @"INSERT INTO BookingPricing (...) VALUES (...)";
+            //await con.ExecuteAsync(sql, pricing, tx);
+            const string sql = @"
+                INSERT INTO BookingPricing (
+                    BookingId, TotalAmount, DiscountAmount, PromoCode, Currency, CreatedAt
+                )
+                VALUES (
+                    @BookingId, @TotalAmount, @DiscountAmount, @PromoCode, @Currency, @CreatedAt
+                );
+                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+            var pricingId = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(sql, pricing, transaction,
+                    cancellationToken: cancellationToken));
+
+            pricing.PricingId = pricingId;
+            return pricing;
+        }
+
+        public async Task<decimal> CalculateCancellationFeeAsync(int bookingId)
+        {
+            using var connection = CreateConnection();
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_CalculateCancellationFee",
+                new { BookingId = bookingId },
+                commandType: CommandType.StoredProcedure
+            );
+
+            return result?.CancellationFee ?? 0;
         }
 
     }

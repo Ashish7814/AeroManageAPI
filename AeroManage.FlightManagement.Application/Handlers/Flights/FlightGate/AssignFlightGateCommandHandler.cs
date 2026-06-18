@@ -1,7 +1,7 @@
 ﻿using AeroManage.FlightManagement.Application.Commands.Flights.FlightGate;
 using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Hubs;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
 using AeroMange.Shared.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;

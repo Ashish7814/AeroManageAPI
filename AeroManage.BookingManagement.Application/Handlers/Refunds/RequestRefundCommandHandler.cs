@@ -3,6 +3,7 @@ using AeroManage.BookingManagement.Application.Hubs;
 using AeroManage.BookingManagement.Application.Queries.Refund;
 using AeroManage.BookingManagement.Application.Services.Interfaces;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Domain.Services.Interfaces;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
@@ -73,7 +74,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Refunds
                 }
 
                 // Calculate cancellation fee
-                var cancellationFee = await _extendedRepo.CalculateCancellationFeeAsync(request.bookingId);
+                var cancellationFee = await _paymentRepo.CalculateCancellationFeeAsync(request.bookingId);
                 var refundAmount = request.dto.PartialRefundAmount ?? (booking.TotalAmount - cancellationFee);
 
                 if (refundAmount <= 0)
@@ -82,7 +83,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Refunds
                 }
 
                 // Create refund request in database
-                var (refundId, refundReference) = await _extendedRepo.CreateRefundRequestAsync(
+                var (refundId, refundReference) = await _paymentRepo.CreateRefundRequestAsync(
                     request.bookingId,
                     payment.PaymentId,
                     refundAmount,
@@ -158,14 +159,14 @@ namespace AeroManage.BookingManagement.Application.Handlers.Refunds
                     "requested_by_customer"
                 );
 
-                await _extendedRepo.ProcessRefundAsync(refundId, stripeRefund.Id, "Completed");
+                await _paymentRepo.ProcessRefundAsync(refundId,0, DateTime.UtcNow, stripeRefund.Id, "Completed");
 
                 _logger.LogInformation($"Stripe refund processed: {stripeRefund.Id}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error processing Stripe refund for refund ID {refundId}");
-                await _extendedRepo.ProcessRefundAsync(refundId, null, "Failed");
+                await _paymentRepo.ProcessRefundAsync(refundId, 0, DateTime.UtcNow, null, "Failed");
             }
         }
     }

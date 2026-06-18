@@ -1,8 +1,7 @@
 ﻿using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Queries.Flights;
-using AeroManage.FlightManagement.Application.Services.Implementation;
-using AeroManage.FlightManagement.Application.Services.Interfaces;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.Shared.Constant;
 using AeroManage.Shared.Service.Implementation;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;

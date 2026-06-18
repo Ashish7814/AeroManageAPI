@@ -1,6 +1,7 @@
 ﻿using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Queries.Flights.FlightCrew;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.Shared.DTos;
 using MediatR;
 using System;
 using System.Collections.Generic;

@@ -44,7 +44,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Seats
             try
             {
                 // Change seat
-                var result = await _repo.ChangeSeatAsync(
+                var result = await _seatRepo.ChangeSeatAsync(
                     request.dto.PassengerId,
                     request.dto.FlightId,
                     request.dto.NewSeatNumber,

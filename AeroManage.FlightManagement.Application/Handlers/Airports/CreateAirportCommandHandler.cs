@@ -1,7 +1,7 @@
 ﻿using AeroManage.FlightManagement.Application.Commands.Airport;
 using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Domain.Entities;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
 using AeroMange.Shared.Repositories;
 using MediatR;
 using System;

@@ -17,6 +17,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Date
     public class ChangeDateCommandHandler : IRequestHandler<ChangeDateCommand, ApiResponse<BookingDto>>
     {
         private readonly IBookingRepository _repo;
+        private readonly IFlightDetailsRepository _flightRepo;
         private readonly ICacheService _cache;
         private readonly IHubContext<BookingHub> _hubContext;
    /*     private readonly IMessageQueueService _messageQueue;*/
@@ -24,12 +25,14 @@ namespace AeroManage.BookingManagement.Application.Handlers.Date
 
         public ChangeDateCommandHandler(
             IBookingRepository repo,
+            IFlightDetailsRepository flightRepo,
             ICacheService cache,
             IHubContext<BookingHub> hubContext,
             /*IMessageQueueService messageQueue,*/
             ILogger<ChangeDateCommandHandler> logger)
         {
             _repo = repo;
+            _flightRepo = flightRepo;
             _cache = cache;
             _hubContext = hubContext;
             /*_messageQueue = messageQueue;*/
@@ -40,7 +43,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Date
         {
             try
             {
-                var result = await _repo.ChangeFlightDateAsync(
+                var result = await _flightRepo.ChangeFlightDateAsync(
                     request.bookingId,
                     request .dto.FlightId,
                     request.dto.NewDepartureDate,

@@ -50,6 +50,8 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
         private readonly IPassengerRepository _passengerRepo;
         private readonly IBookingPricingRepository _pricingRepo;
         private readonly IPromoCodeRepository _promoCodeRepo;
+        private readonly IFlightDetailsRepository _flightDetailsRepo;
+        private readonly IPaymentRepository _paymentRepo;
         private readonly ICacheService _cache;
         private readonly IHubContext<BookingHub> _hubContext;
         private readonly ILogger<CreateBookingCommandHandler> _logger;
@@ -59,6 +61,8 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
             IPassengerRepository passengerRepo,
             IBookingPricingRepository pricingRepo,
             IPromoCodeRepository promoCodeRepo,
+            IFlightDetailsRepository flightDetailsRepo,
+            IPaymentRepository paymentRepo,
             ICacheService cache,
             IHubContext<BookingHub> hubContext,
             ILogger<CreateBookingCommandHandler> logger)
@@ -67,6 +71,8 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
             _passengerRepo = passengerRepo ?? throw new ArgumentNullException(nameof(passengerRepo));
             _pricingRepo = pricingRepo ?? throw new ArgumentNullException(nameof(pricingRepo));
             _promoCodeRepo = promoCodeRepo ?? throw new ArgumentNullException(nameof(promoCodeRepo));
+            _flightDetailsRepo = flightDetailsRepo ?? throw new ArgumentNullException(nameof(flightDetailsRepo));
+            _paymentRepo = paymentRepo ?? throw new ArgumentNullException(nameof(paymentRepo));
             _cache = cache;
             _hubContext = hubContext;
             _logger = logger;
@@ -345,7 +351,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                         int segment = 1;
                         foreach (var flightId in dto.FlightIds)
                         {
-                            await _bookingRepo.AddFlightToBookingAsync(
+                            await _flightDetailsRepo.AddFlightToBookingAsync(
                                 createdBooking.BookingId, flightId, segment++,
                                 connection, transaction, cancellationToken);
                         }
@@ -408,7 +414,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                             CreatedAt = DateTime.UtcNow
                         };
 
-                        await _bookingRepo.CreatePricingAsync(
+                        await _paymentRepo.CreatePricingAsync(
                             pricing, connection, transaction, cancellationToken);
 
                         // 4e. Increment promo code usage (inside same transaction)
