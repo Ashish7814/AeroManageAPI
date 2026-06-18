@@ -21,5 +21,7 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
         Task<bool> ReleaseSeatReservationAsync(int reservationId);
         Task<bool> ReleaseExpiredReservationsAsync();
         Task<bool> IsSeatAvailableAsync(int flightId, int seatId);
+        Task<bool> ChangeSeatAsync(int bookingPassengerId, int flightId, string newSeat, int changedBy);
+        Task<SeatAvailability> GetSeatAvailabilityAsync(int flightId, string seatClass);
     }
 }

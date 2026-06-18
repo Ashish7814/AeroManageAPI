@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AeroManage.BookingManagement.Application.Services.Interfaces
+namespace AeroManage.BookingManagement.Domain.Services.Interfaces
 {
     public interface IStripePaymentService
     {

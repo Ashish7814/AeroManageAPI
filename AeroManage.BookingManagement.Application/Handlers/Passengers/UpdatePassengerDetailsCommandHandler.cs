@@ -1,6 +1,7 @@
 ﻿using AeroManage.BookingManagement.Application.Commands.Passengers;
 using AeroManage.BookingManagement.Application.DTOs;
 using AeroManage.BookingManagement.Application.Hubs;
+using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;
@@ -44,13 +45,28 @@ namespace AeroManage.BookingManagement.Application.Handlers.Passengers
             try
             {
                 // Update passenger details
-                var result = await _repo.UpdatePassengerDetailsAsync(
-                    request.dto.PassengerId,
-                    request.dto.Email,
-                    request.dto.Phone,
-                    request.dto.PassportNumber,
-                    request.dto.PassportExpiry
-                );
+                //var result = await _passengerRepo.UpdateBookingPassengerAsync(
+                //    request.dto.PassengerId,
+                //    request.dto.Email,
+                //    request.dto.Phone,
+                //    request.dto.PassportNumber,
+                //    request.dto.PassportExpiry
+                //);
+
+                var passengers = new BookingPassenger
+                {
+                    PassengerId = request.dto.PassengerId,
+
+                    Passenger = new Passenger
+                    {
+                        Email = request.dto.Email,
+                        Phone = request.dto.Phone,
+                        PassportNumber = request.dto.PassportNumber,
+                        PassportExpiry = request.dto.PassportExpiry
+                    }
+                };
+
+                var result = await _passengerRepo.UpdateBookingPassengerAsync(passengers);
 
                 if (!result)
                 {

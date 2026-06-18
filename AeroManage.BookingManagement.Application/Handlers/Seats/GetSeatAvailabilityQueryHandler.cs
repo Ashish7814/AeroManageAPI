@@ -15,11 +15,13 @@ namespace AeroManage.BookingManagement.Application.Handlers.Seats
     public class GetSeatAvailabilityQueryHandler : IRequestHandler<GetSeatAvailabilityQuery, ApiResponse<SeatAvailabilityDto>>
     {
         private readonly IBookingRepository _repo;
+        private readonly ISeatRepository _seatRepo;
         private readonly ICacheService _cache;
         private readonly ILogger<GetSeatAvailabilityQueryHandler> _logger;
 
         public GetSeatAvailabilityQueryHandler(
             IBookingRepository repo,
+            ISeatRepository seatRepo,
             ICacheService cache,
             ILogger<GetSeatAvailabilityQueryHandler> logger)
         {
@@ -40,7 +42,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Seats
                     return ApiResponse<SeatAvailabilityDto>.SuccessResponse(cached);
                 }
 
-                var seatAvailability = await _repo.GetSeatAvailabilityAsync(request.flightId, request.seatClass);
+                var seatAvailability = await _seatRepo.GetSeatAvailabilityAsync(request.flightId, request.seatClass);
 
                 var result = new SeatAvailabilityDto
                 {

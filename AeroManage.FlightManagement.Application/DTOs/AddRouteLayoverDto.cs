@@ -161,18 +161,7 @@ namespace AeroManage.FlightManagement.Application.DTOs
         public int CreatedBy { get; set; }
     }
 
-    public class FlightNotificationDto
-    {
-        public int NotificationId { get; set; }
-        public int FlightId { get; set; }
-        public string NotificationType { get; set; }
-        public string Message { get; set; }
-        public string Severity { get; set; }
-        public bool IsResolved { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public UserDto ChangedBy { get; set; }
-        public DateTime? ResolvedAt { get; set; }
-    }
+   
    
 
     // ==================== WEATHER ALERT DTOs ====================
@@ -276,16 +265,7 @@ namespace AeroManage.FlightManagement.Application.DTOs
         public int ReportedBy { get; set; }
     }
 
-    public class FlightDelayReasonDto
-    {
-        public int DelayId { get; set; }
-        public int FlightId { get; set; }
-        public string DelayType { get; set; }
-        public int DelayMinutes { get; set; }
-        public string Reason { get; set; }
-        public DateTime ReportedAt { get; set; }
-        public UserDto ReportedBy { get; set; }
-    }
+  
 
     // ==================== BOARDING STATUS DTOs ====================
     public class UpdateBoardingStatusDto

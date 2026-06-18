@@ -1,8 +1,8 @@
 ﻿using AeroManage.FlightManagement.Application.Commands.Flights.FlightDelay;
 using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Hubs;
-using AeroManage.FlightManagement.Application.Services.Interfaces;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Domain.Services.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using System;

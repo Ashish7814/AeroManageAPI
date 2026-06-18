@@ -1,7 +1,7 @@
 ﻿using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Mappers;
 using AeroManage.FlightManagement.Application.Queries.Flights;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;

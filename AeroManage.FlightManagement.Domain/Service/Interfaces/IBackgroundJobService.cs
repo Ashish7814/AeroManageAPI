@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AeroManage.FlightManagement.Application.Services.Interfaces
+namespace AeroManage.FlightManagement.Domain.Services.Interfaces
 {
     public interface IBackgroundJobService
     {

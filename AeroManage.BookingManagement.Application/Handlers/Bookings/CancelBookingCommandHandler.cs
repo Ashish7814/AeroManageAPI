@@ -3,6 +3,7 @@ using AeroManage.BookingManagement.Application.DTOs;
 using AeroManage.BookingManagement.Application.Hubs;
 using AeroManage.BookingManagement.Application.Services.Interfaces;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Domain.Services.Interfaces;
 using AeroManage.Shared.Service.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
@@ -64,7 +65,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                 }
 
                 // Calculate refund amount
-                var cancellationFee = await _extendedRepo.CalculateCancellationFeeAsync(request.bookingId);
+                var cancellationFee = await _paymentRepo.CalculateCancellationFeeAsync(request.bookingId);
                 var refundAmount = booking.TotalAmount - cancellationFee;
 
                 // Process refund if payment was made
@@ -80,7 +81,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                             "requested_by_customer"
                         );
 
-                        await _paymentRepo.ProcessRefundAsync(payment.PaymentId, refundAmount, DateTime.UtcNow);
+                        await _paymentRepo.ProcessRefundAsync(payment.PaymentId, refundAmount, DateTime.UtcNow, null, null);
                     }
                 }
 

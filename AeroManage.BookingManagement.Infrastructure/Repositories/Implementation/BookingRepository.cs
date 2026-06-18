@@ -81,43 +81,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             }
         }
 
-        public async Task<SeatAvailability> GetSeatAvailabilityAsync(int flightId, string seatClass)
-        {
-            try
-            {
-                using var connection = CreateConnection();
-                var results = await connection.QueryAsync<dynamic>(
-                    "sp_GetSeatAvailability",
-                    new { FlightId = flightId, SeatClass = seatClass },
-                    commandType: CommandType.StoredProcedure
-                );
-
-                var availability = new SeatAvailability();
-                foreach (var row in results)
-                {
-                    if (row.SeatClass == "Economy")
-                    {
-                        availability.EconomyAvailable = row.AvailableSeats;
-                    }
-                    else if (row.SeatClass == "Business")
-                    {
-                        availability.BusinessAvailable = row.AvailableSeats;
-                    }
-                    else if (row.SeatClass == "FirstClass")
-                    {
-                        availability.FirstClassAvailable = row.AvailableSeats;
-                    }
-                    availability.AvailableSeats += (int)row.AvailableSeats;
-                }
-
-                return availability;
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-        }
-
+        
         public async Task<List<Airline>> GetActiveAirlinesAsync()
         {
             try
@@ -330,78 +294,13 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             return result == 1;
         }
 
-        public async Task<bool> ChangeSeatAsync(int bookingPassengerId, int flightId, string newSeat, int changedBy)
-        {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                "sp_ChangeSeat",
-                new
-                {
-                    BookingPassengerId = bookingPassengerId,
-                    FlightId = flightId,
-                    NewSeatNumber = newSeat,
-                    ChangedBy = changedBy
-                },
-                commandType: CommandType.StoredProcedure
-            );
+       
 
-            return result != null && result.Success == 1;
-        }
+       
 
-        public async Task<decimal> CalculateCancellationFeeAsync(int bookingId)
-        {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                "sp_CalculateCancellationFee",
-                new { BookingId = bookingId },
-                commandType: CommandType.StoredProcedure
-            );
+       
 
-            return result?.CancellationFee ?? 0;
-        }
-
-        // ==================== REFUNDS ====================
-
-        public async Task<(int RefundId, string RefundReference)> CreateRefundRequestAsync(
-            int bookingId, int paymentId, decimal refundAmount, decimal cancellationFee,
-            string reason, string bankAccount, string bankName, int requestedBy)
-        {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
-                "sp_CreateRefundRequest",
-                new
-                {
-                    BookingId = bookingId,
-                    PaymentId = paymentId,
-                    RefundAmount = refundAmount,
-                    CancellationFee = cancellationFee,
-                    RefundReason = reason,
-                    BankAccountNumber = bankAccount,
-                    BankName = bankName,
-                    RequestedBy = requestedBy
-                },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return (result.RefundId, result.RefundReference);
-        }
-
-        public async Task<bool> ProcessRefundAsync(int refundId, string stripeRefundId, string status)
-        {
-            using var connection = CreateConnection();
-            await connection.ExecuteAsync(
-                "sp_ProcessRefund",
-                new
-                {
-                    RefundId = refundId,
-                    StripeRefundId = stripeRefundId,
-                    Status = status
-                },
-                commandType: CommandType.StoredProcedure
-            );
-
-            return true;
-        }
+       
 
 
         //public async Task<Booking> CreateBookingAsync(Booking booking, )
@@ -596,34 +495,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             return rowsAffected > 0;
         }
 
-        public async Task<bool> AddFlightToBookingAsync(int bookingId, int flightId, int flightSegment, IDbConnection connection,
-            IDbTransaction transaction,
-            CancellationToken cancellationToken = default)
-        {
-            //using var connection = CreateConnection();
-
-            //var sql = @"
-            //    INSERT INTO BookingFlights (BookingId, FlightId, FlightSegment)
-            //    VALUES (@BookingId, @FlightId, @FlightSegment)";
-
-            //var rowsAffected = await connection.ExecuteAsync(sql, new
-            //{
-            //    BookingId = bookingId,
-            //    FlightId = flightId,
-            //    FlightSegment = flightSegment
-            //});
-            const string sql = @"
-                    INSERT INTO BookingFlights (BookingId, FlightId, FlightSegment)
-                    VALUES (@BookingId, @FlightId, @FlightSegment)";
-
-            var rows = await connection.ExecuteAsync(
-                new CommandDefinition(sql,
-                    new { BookingId = bookingId, FlightId = flightId, FlightSegment = flightSegment },
-                    transaction,
-                    cancellationToken: cancellationToken));
-
-            return rows > 0;
-        }
+        
 
         public async Task<IEnumerable<BookingFlight>> GetBookingFlightsAsync(int bookingId, CancellationToken cancellationToken = default)
         {
@@ -665,28 +537,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     cancellationToken: cancellationToken));
 
         }
-        public async Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, IDbConnection connection,
-            IDbTransaction transaction,
-            CancellationToken cancellationToken = default)
-        {
-            //var sql = @"INSERT INTO BookingPricing (...) VALUES (...)";
-            //await con.ExecuteAsync(sql, pricing, tx);
-            const string sql = @"
-                INSERT INTO BookingPricing (
-                    BookingId, TotalAmount, DiscountAmount, PromoCode, Currency, CreatedAt
-                )
-                VALUES (
-                    @BookingId, @TotalAmount, @DiscountAmount, @PromoCode, @Currency, @CreatedAt
-                );
-                SELECT CAST(SCOPE_IDENTITY() AS INT);";
-
-            var pricingId = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(sql, pricing, transaction,
-                    cancellationToken: cancellationToken));
-
-            pricing.PricingId = pricingId;
-            return pricing;
-        }
+     
 
     }
 
