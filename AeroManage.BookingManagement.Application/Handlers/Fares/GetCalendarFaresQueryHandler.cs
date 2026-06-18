@@ -15,15 +15,18 @@ namespace AeroManage.BookingManagement.Application.Handlers.Fares
     public class GetCalendarFaresQueryHandler : IRequestHandler<GetCalendarFaresQuery, ApiResponse<List<CalendarFareResultDto>>>
     {
         private readonly IBookingRepository _repo;
+        private readonly ICalendarFareRepository _calendarFareRepo;
         private readonly ICacheService _cache;
         private readonly ILogger<GetCalendarFaresQueryHandler> _logger;
 
         public GetCalendarFaresQueryHandler(
             IBookingRepository repo,
+            ICalendarFareRepository calendarFareRepo,
             ICacheService cache,
             ILogger<GetCalendarFaresQueryHandler> logger)
         {
             _repo = repo;
+            _calendarFareRepo = calendarFareRepo;
             _cache = cache;
             _logger = logger;
         }
@@ -40,7 +43,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Fares
                     return ApiResponse<List<CalendarFareResultDto>>.SuccessResponse(cached);
                 }
 
-                var calendarFares = await _repo.GetCalendarFaresAsync(
+                var calendarFares = await _calendarFareRepo.GetCalendarFaresAsync(
                     request.dto.OriginAirportId,
                     request.dto.DestinationAirportId,
                     request.dto.StartDate,

@@ -15,15 +15,18 @@ namespace AeroManage.BookingManagement.Application.Handlers.Flights
     public class GetFlightDetailsQueryHandler : IRequestHandler<GetFlightDetailsQuery, ApiResponse<FlightDetailsDto>>
     {
         private readonly IBookingRepository _repo;
+        private readonly IFlightDetailsRepository _flightRepo;
         private readonly ICacheService _cache;
         private readonly ILogger<GetFlightDetailsQueryHandler> _logger;
 
         public GetFlightDetailsQueryHandler(
             IBookingRepository repo,
+            IFlightDetailsRepository flightRrepo,
             ICacheService cache,
             ILogger<GetFlightDetailsQueryHandler> logger)
         {
             _repo = repo;
+            _flightRepo = flightRrepo;
             _cache = cache;
             _logger = logger;
         }
@@ -40,7 +43,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Flights
                     return ApiResponse<FlightDetailsDto>.SuccessResponse(cached);
                 }
 
-                var result = await _repo.GetFlightDetailsAsync(request.flightId);
+                var result = await _flightRepo.GetFlightDetailsAsync(request.flightId);
 
                 if (result == null)
                 {

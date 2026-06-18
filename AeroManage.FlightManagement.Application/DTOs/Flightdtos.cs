@@ -357,49 +357,14 @@ namespace AeroManage.FlightManagement.Application.DTOs
     //    public string PhoneNumber { get; set; }
     //}
 
-    public class FlightCrewDto
-    {
-        public int FlightCrewId { get; set; }
-        public int FlightId { get; set; }
-        public int UserId { get; set; }
-        public DateTime AssignedAt { get; set; }
+ 
 
-        public CrewUserDto Users { get; set; }
-    }
+ 
 
-    public class CrewUserDto
-    {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+  
 
-        public RoleDto Roles { get; set; }
-    }
-
-    public class RoleDto
-    {
-        public string RoleName { get; set; }
-    }
-
-    public class FlightStatusHistoryDto
-    {
-        public int StatusHistoryId { get; set; }
-        public int FlightId { get; set; }
-        public string OldStatus { get; set; }
-        public string NewStatus { get; set; }
-        public string Reason { get; set; }
-        public UserDto ChangedBy { get; set; }
-        public DateTime ChangedAt { get; set; }
-    }
-    public class UserDto
-    {
-        public int UserId { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public RoleDto Role { get; set; }
-    }
+  
+   
 
     public class MaintenanceRecordDto
     {

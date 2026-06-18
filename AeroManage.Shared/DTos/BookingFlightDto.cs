@@ -43,4 +43,23 @@ namespace AeroManage.Shared.DTos
         public string Phone { get; set; }
         public string FrequentFlyerNumber { get; set; }
     }
+    public class CrewUserDto
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PhoneNumber { get; set; }
+
+        public RoleDto Roles { get; set; }
+    }
+
+    public class FlightCrewDto
+    {
+        public int FlightCrewId { get; set; }
+        public int FlightId { get; set; }
+        public int UserId { get; set; }
+        public DateTime AssignedAt { get; set; }
+
+        public CrewUserDto Users { get; set; }
+    }
 }

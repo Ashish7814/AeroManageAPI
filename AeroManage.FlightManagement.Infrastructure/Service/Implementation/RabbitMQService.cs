@@ -1,5 +1,6 @@
-﻿using AeroManage.FlightManagement.Application.DTOs;
-using AeroManage.FlightManagement.Application.Services.Interfaces;
+﻿
+using AeroManage.FlightManagement.Domain.Services.Interfaces;
+using AeroManage.Shared.DTos;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

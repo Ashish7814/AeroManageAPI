@@ -1,6 +1,6 @@
 ﻿using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Queries.Routes;
-using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
+using AeroManage.FlightManagement.Domain.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;

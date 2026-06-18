@@ -253,5 +253,60 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 sql, new { FlightId = flightId }
             );
         }
+        public async Task<bool> ChangeSeatAsync(int bookingPassengerId, int flightId, string newSeat, int changedBy)
+        {
+            using var connection = CreateConnection();
+            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "sp_ChangeSeat",
+                new
+                {
+                    BookingPassengerId = bookingPassengerId,
+                    FlightId = flightId,
+                    NewSeatNumber = newSeat,
+                    ChangedBy = changedBy
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            return result != null && result.Success == 1;
+        }
+
+        public async Task<SeatAvailability> GetSeatAvailabilityAsync(int flightId, string seatClass)
+        {
+            try
+            {
+                using var connection = CreateConnection();
+                var results = await connection.QueryAsync<dynamic>(
+                    "sp_GetSeatAvailability",
+                    new { FlightId = flightId, SeatClass = seatClass },
+                    commandType: CommandType.StoredProcedure
+                );
+
+                var availability = new SeatAvailability();
+                foreach (var row in results)
+                {
+                    if (row.SeatClass == "Economy")
+                    {
+                        availability.EconomyAvailable = row.AvailableSeats;
+                    }
+                    else if (row.SeatClass == "Business")
+                    {
+                        availability.BusinessAvailable = row.AvailableSeats;
+                    }
+                    else if (row.SeatClass == "FirstClass")
+                    {
+                        availability.FirstClassAvailable = row.AvailableSeats;
+                    }
+                    availability.AvailableSeats += (int)row.AvailableSeats;
+                }
+
+                return availability;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
     }
 }

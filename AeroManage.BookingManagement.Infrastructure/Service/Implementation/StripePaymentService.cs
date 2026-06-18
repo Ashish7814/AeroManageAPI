@@ -1,5 +1,4 @@
-﻿using AeroManage.BookingManagement.Application.Services.Interfaces;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Stripe;
@@ -9,8 +8,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AeroManage.BookingManagement.Domain.Services.Interfaces;
 
-namespace AeroManage.BookingManagement.Application.Services.Implementation
+namespace AeroManage.BookingManagement.Infrastructure.Services.Implementation
 {
     public class StripePaymentService : IStripePaymentService
     {

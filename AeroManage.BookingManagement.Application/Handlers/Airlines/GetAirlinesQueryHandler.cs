@@ -15,15 +15,18 @@ namespace AeroManage.BookingManagement.Application.Handlers.Airlines
     public class GetAirlinesQueryHandler : IRequestHandler<GetAirlinesQuery, ApiResponse<List<AirlineDto>>>
     {
         private readonly IBookingRepository _repo;
+        private readonly IAirlineRepository _airlineRepo;
         private readonly ICacheService _cache;
         private readonly ILogger<GetAirlinesQueryHandler> _logger;
 
         public GetAirlinesQueryHandler(
             IBookingRepository repo,
+            IAirlineRepository airlineRep,
             ICacheService cache,
             ILogger<GetAirlinesQueryHandler> logger)
         {
             _repo = repo;
+            _airlineRepo = airlineRep;
             _cache = cache;
             _logger = logger;
         }
@@ -40,7 +43,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Airlines
                     return ApiResponse<List<AirlineDto>>.SuccessResponse(cached);
                 }
 
-                var activeAirline = await _repo.GetActiveAirlinesAsync();
+                var activeAirline = await _airlineRepo.GetActiveAirlinesAsync();
 
                 var result = activeAirline.Select(a => new AirlineDto
                 {

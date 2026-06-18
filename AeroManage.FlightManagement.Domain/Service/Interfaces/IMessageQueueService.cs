@@ -1,11 +1,12 @@
-﻿using AeroManage.FlightManagement.Application.DTOs;
+﻿
+using AeroManage.Shared.DTos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AeroManage.FlightManagement.Application.Services.Interfaces
+namespace AeroManage.FlightManagement.Domain.Services.Interfaces
 {
     public interface IMessageQueueService
     {
