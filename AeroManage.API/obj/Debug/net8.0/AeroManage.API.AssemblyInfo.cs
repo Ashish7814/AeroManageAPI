@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AeroManage.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+820a609a3882112fddb2bc9d896838bb0ea52e43")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7700223a4ac6e564cc305ecce564e6f802a256d6")]
 [assembly: System.Reflection.AssemblyProductAttribute("AeroManage.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AeroManage.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

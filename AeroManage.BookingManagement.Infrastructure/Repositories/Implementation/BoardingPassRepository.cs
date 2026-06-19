@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,21 +15,19 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class BoardingPassRepository : IBoardingPassRepository
     {
-        private readonly string _connectionString;
+        private IDapperUnitOfWork _unitOfWork;
 
-        public BoardingPassRepository(IConfiguration configuration)
+        public BoardingPassRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
 
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<(int BoardingPassId, string BoardingPassNumber, string QRCode, string BoardingGroup, int BoardingZone)>
             GenerateBoardingPassAsync(int bookingPassengerId, string gate, DateTime boardingTime, string boardingGroup = null, int? boardingZone = null)
         {
-            using var connection = CreateConnection();
 
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_GenerateBoardingPass",
                 new
                 {
@@ -46,9 +45,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<BoardingPass> GetBoardingPassAsync(int? boardingPassId, string boardingPassNumber, int? bookingPassengerId)
         {
-            using var connection = CreateConnection();
 
-            var boardingPass = await connection.QueryFirstOrDefaultAsync<BoardingPass>(
+            var boardingPass = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<BoardingPass>(
                 "sp_GetBoardingPass",
                 new
                 {
@@ -64,9 +62,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<BoardingPassScan> ScanBoardingPassAsync(string boardingPassNumber, string scannedBy)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<BoardingPassScan>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<BoardingPassScan>(
                 "sp_ScanBoardingPass",
                 new
                 {
@@ -81,9 +77,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<List<BoardingPass>> GetFlightBoardingPassesAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            var passes = await connection.QueryAsync<BoardingPass>(
+            var passes = await _unitOfWork.Connection.QueryAsync<BoardingPass>(
                 "sp_GetFlightBoardingPasses",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure
@@ -94,9 +88,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<int> UpdateBoardingPassGateAsync(int flightId, string newGate, DateTime? newBoardingTime)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_UpdateBoardingPassGate",
                 new
                 {

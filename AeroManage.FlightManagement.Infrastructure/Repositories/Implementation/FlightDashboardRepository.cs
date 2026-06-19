@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,28 +15,24 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightDashboardRepository : IFlightDashboardRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightDashboardRepository(IConfiguration configuration)
+        public FlightDashboardRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<IEnumerable<FlightDashboard>> GetFlightDashboardAsync(
             int? airportId,
             DateTime? date,
             string status)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@AirportId", airportId);
             parameters.Add("@Date", date);
             parameters.Add("@Status", status);
 
-            return await connection.QueryAsync<FlightDashboard>(
+            return await _unitOfWork.Connection.QueryAsync<FlightDashboard>(
                 "sp_GetFlightDashboard",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -44,14 +41,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Flight> UpdateBoardingStatusAsync(int flightId, string boardingStatus, int updatedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@BoardingStatus", boardingStatus);
             parameters.Add("@UpdatedBy", updatedBy);
 
-            return await connection.QueryFirstOrDefaultAsync<Flight>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Flight>(
                 "sp_UpdateBoardingStatus",
                 parameters,
                 commandType: CommandType.StoredProcedure

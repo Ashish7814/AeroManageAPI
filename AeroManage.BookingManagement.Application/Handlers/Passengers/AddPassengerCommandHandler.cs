@@ -118,7 +118,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Passengers
                     else
                     {
                         createdPassenger = await _passengerRepo.CreatePassengerAsync(
-                                passenger, connection, transaction, cancellationToken);
+                                passenger, cancellationToken);
                     }
                         
 
@@ -133,7 +133,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Passengers
                         };
 
                         await _passengerRepo.AddPassengerToBookingAsync(
-                            bookingPassenger, connection, transaction, cancellationToken);
+                            bookingPassenger, cancellationToken);
 
                         await transaction.CommitAsync(cancellationToken);
 

@@ -1,5 +1,6 @@
 ﻿
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using AeroManage.Shared.DTos;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -15,20 +16,16 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightNumberRepository : IFlightNumberRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightNumberRepository(IConfiguration configuration)
+        public FlightNumberRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<FlightNumberResultDto> GenerateFlightNumberAsync(string prefix)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryFirstOrDefaultAsync<FlightNumberResultDto>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightNumberResultDto>(
                 "sp_GenerateFlightNumber",
                 new { Prefix = prefix },
                 commandType: CommandType.StoredProcedure

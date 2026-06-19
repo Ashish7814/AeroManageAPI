@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,19 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class RouteLayoverRepository : IRouteLayoverRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public RouteLayoverRepository(IConfiguration configuration)
+        public RouteLayoverRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<RouteLayover> AddLayoverAsync(int routeId, int airportId, int layoverSequence, int minMinutes, int maxMinutes)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@RouteId", routeId);
             parameters.Add("@AirportId", airportId);
@@ -34,7 +31,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@MinimumLayoverMinutes", minMinutes);
             parameters.Add("@MaximumLayoverMinutes", maxMinutes);
 
-            return await connection.QueryFirstOrDefaultAsync<RouteLayover>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<RouteLayover>(
                 "sp_AddRouteLayover",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -43,10 +40,8 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<RouteLayover>> GetRouteLayoversAsync(int routeId)
         {
-            using var connection = CreateConnection();
-
             // Get route info and layovers
-            using var multi = await connection.QueryMultipleAsync(
+            using var multi = await _unitOfWork.Connection.QueryMultipleAsync(
                 "sp_GetRouteWithLayovers",
                 new { RouteId = routeId },
                 commandType: CommandType.StoredProcedure
@@ -61,9 +56,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<bool> DeleteLayoverAsync(int layoverId)
         {
-            using var connection = CreateConnection();
-
-            var affected = await connection.ExecuteAsync(
+            var affected = await _unitOfWork.Connection.ExecuteAsync(
                 "UPDATE RouteLayovers SET IsActive = 0 WHERE LayoverId = @LayoverId",
                 new { LayoverId = layoverId }
             );

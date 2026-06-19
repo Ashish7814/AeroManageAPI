@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AeroMange.UserManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9989039cf46ebb0256509ac3f7cee5fef7200c15")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7700223a4ac6e564cc305ecce564e6f802a256d6")]
 [assembly: System.Reflection.AssemblyProductAttribute("AeroMange.UserManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AeroMange.UserManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

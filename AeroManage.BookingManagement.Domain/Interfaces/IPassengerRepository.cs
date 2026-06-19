@@ -10,12 +10,11 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
 {
     public interface IPassengerRepository
     {
-        IDbConnection CreateConnection();
-        Task<Passenger> CreatePassengerAsync(Passenger passenger, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken);
+        Task<Passenger> CreatePassengerAsync(Passenger passenger, CancellationToken cancellationToken);
         Task<Passenger> GetPassengerByIdAsync(int passengerId, string email);
         Task<IEnumerable<Passenger>> GetPassengersByUserIdAsync(int userId);
         Task<bool> UpdatePassengerAsync(Passenger passenger);
-        Task<BookingPassenger> AddPassengerToBookingAsync(BookingPassenger bookingPassenger, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken);
+        Task<BookingPassenger> AddPassengerToBookingAsync(BookingPassenger bookingPassenger, CancellationToken cancellationToken);
         Task<IEnumerable<BookingPassenger>> GetBookingPassengersAsync(int bookingId, CancellationToken cancellationToken);
         Task<bool> UpdateBookingPassengerAsync(BookingPassenger bookingPassenger);
     }

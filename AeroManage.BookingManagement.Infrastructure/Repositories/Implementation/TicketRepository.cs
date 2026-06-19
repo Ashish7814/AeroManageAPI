@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,24 +15,19 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class TicketRepository : ITicketRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
         private readonly IBookingRepository _bookingRepository;
 
-        public TicketRepository(IConfiguration configuration, IBookingRepository bookingRepository)
+        public TicketRepository(IDapperUnitOfWork unitOfWork, IBookingRepository bookingRepository)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
-            _bookingRepository = bookingRepository;
+            _unitOfWork = unitOfWork;
+             _bookingRepository = bookingRepository;
         }
 
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
-        }
         public async Task<(int BoardingPassId, string BoardingPassNumber, string QRCode)> GenerateBoardingPassAsync(
             int bookingPassengerId, string gate, DateTime boardingTime)
         {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_GenerateBoardingPass",
                 new
                 {
@@ -47,10 +43,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<PNRDetails> GetPNRDetailsAsync(string pnr)
         {
-            using var connection = CreateConnection();
-
             var bookingSummary = await _bookingRepository.GetBookingSummaryAsync(
-                (await connection.QueryFirstAsync<int>(
+                (await _unitOfWork.Connection.QueryFirstAsync<int>(
                     "SELECT BookingId FROM Bookings WHERE PNR = @PNR",
                     new { PNR = pnr }
                 ))
@@ -78,8 +72,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         public async Task<int> LogEmailNotificationAsync(int bookingId, string emailType,
             string recipient, string subject, string status)
         {
-            using var connection = CreateConnection();
-            var result = await connection.ExecuteScalarAsync<int>(
+            var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                 "sp_LogEmailNotification",
                 new
                 {
@@ -97,8 +90,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> UpdateEmailStatusAsync(int notificationId, string status, string errorMessage)
         {
-            using var connection = CreateConnection();
-            await connection.ExecuteAsync(
+            await _unitOfWork.Connection.ExecuteAsync(
                 "sp_UpdateEmailStatus",
                 new
                 {
