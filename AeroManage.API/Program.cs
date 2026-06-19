@@ -1,10 +1,13 @@
 using AeroManage.API.Middleware;
+using AeroManage.BookingManagement.Application.Behaviors;
 using AeroManage.BookingManagement.Application.Queries.Bookings;
 using AeroManage.BookingManagement.Application.Services.Implementation;
 using AeroManage.BookingManagement.Application.Services.Interfaces;
+using AeroManage.BookingManagement.Application.Validators;
 using AeroManage.BookingManagement.Domain.Interfaces;
 using AeroManage.BookingManagement.Domain.Services.Interfaces;
 using AeroManage.BookingManagement.Infrastructure.Repositories.Implementation;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using AeroManage.BookingManagement.Infrastructure.Services.Implementation;
 using AeroManage.FlightManagement.Application.Handlers.Flights;
 using AeroManage.FlightManagement.Application.Hubs;
@@ -13,6 +16,7 @@ using AeroManage.FlightManagement.Application.Services.Implementation;
 using AeroManage.FlightManagement.Domain.Interfaces;
 using AeroManage.FlightManagement.Domain.Services.Interfaces;
 using AeroManage.FlightManagement.Infrastructure.Repositories.Implementation;
+using AeroManage.FlightManagement.Infrastructure.Services.Implementation;
 using AeroManage.Shared.Service.Implementation;
 using AeroManage.Shared.Service.Interfaces;
 using AeroMange.Shared.Repositories;
@@ -21,6 +25,7 @@ using AeroMange.UserManagement.Application.Service;
 using AeroMange.UserManagement.Application.Service.Implementation;
 using AeroMange.UserManagement.Domain.Interfaces;
 using AeroMange.UserManagement.Infrastructure.Repositories.Implemention;
+using FluentValidation;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -49,6 +54,11 @@ builder.Services.AddMediatR(cfg =>
         typeof(GetBookingSummaryQuery).Assembly,
         typeof(GetFlightsQuery).Assembly
     );
+
+    // Pipeline order matters: validation runs before logging wraps the handler,
+    // or vice versa — this order validates first, then logs the actual handler execution
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
 });
 
 // Add CORS
@@ -64,6 +74,13 @@ builder.Services.AddCors(options =>
             .AllowCredentials(); // Required for SignalR
     });
 });
+
+builder.Services.AddValidatorsFromAssembly(typeof(CreateBookingCommandValidator).Assembly);
+builder.Services.AddValidatorsFromAssembly(typeof(GetFlightsQuery).Assembly);
+
+builder.Services.AddScoped<UnitOfWork>();
+builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<UnitOfWork>());
+builder.Services.AddScoped<IDapperUnitOfWork>(sp => sp.GetRequiredService<UnitOfWork>());
 
 // Register Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();

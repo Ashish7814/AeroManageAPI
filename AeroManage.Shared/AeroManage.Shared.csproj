@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Folder Include="Exceptions\" />
+    <Folder Include="Repositories\Interface\" />
   </ItemGroup>
 
 </Project>
