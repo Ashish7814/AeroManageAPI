@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,22 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightRepository : IFlightRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightRepository(IConfiguration configuration)
+        public FlightRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
-        }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<int> CreateFlightAsync(Flight flight, int createdBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightNumber", flight.FlightNumber);
             parameters.Add("@RouteId", flight.RouteId);
@@ -39,7 +33,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@FlightStatus", flight.FlightStatus);
             parameters.Add("@CreatedBy", flight.CreatedBy);
 
-            var result = await connection.QueryFirstOrDefaultAsync<int>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<int>(
                 "sp_CreateFlight",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -49,8 +43,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
         }
         public async Task<IEnumerable<Flight>> GetFlightsAsync()
         {
-            using var connection = CreateConnection();
-
             //var result = await connection.QueryAsync<Flight>(
             //    "sp_GetFlights",
             //    commandType: CommandType.StoredProcedure
@@ -58,7 +50,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
             //return result;
 
-            using var multi = await connection.QueryMultipleAsync(
+            using var multi = await _unitOfWork.Connection.QueryMultipleAsync(
                 "sp_GetFlights",
                 commandType: CommandType.StoredProcedure);
 
@@ -79,9 +71,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Flight> GetFlightByIdAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<Flight>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Flight>(
                 "sp_GetFlightById",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure
@@ -98,8 +88,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             int pageNumber,
             int pageSize)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@OriginAirportId", originAirportId);
             parameters.Add("@DestinationAirportId", destinationAirportId);
@@ -108,7 +96,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@PageNumber", pageNumber);
             parameters.Add("@PageSize", pageSize);
 
-            var flights = (await connection.QueryAsync<Flight>(
+            var flights = (await _unitOfWork.Connection.QueryAsync<Flight>(
                 "sp_SearchFlights",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -121,14 +109,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Flight> UpdateFlightStatusAsync(int flightId, string newStatus, int changedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@FlightStatus", newStatus);
             parameters.Add("@ChangedBy", changedBy);
 
-            var result = await connection.QueryFirstOrDefaultAsync<Flight>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Flight>(
                 "sp_UpdateFlightStatus",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -139,14 +125,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<FlightCrew> AssignFlightCrewAsync(int flightId, int userId, string crewRole)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@UserId", userId);
             parameters.Add("@CrewRole", crewRole);
 
-            var result = await connection.QueryFirstOrDefaultAsync<FlightCrew>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightCrew>(
                 "sp_AssignFlightCrew",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -157,9 +141,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<FlightCrew>> GetFlightCrewAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryAsync<FlightCrew>(
+            var result = await _unitOfWork.Connection.QueryAsync<FlightCrew>(
                 "sp_GetFlightCrew",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure
@@ -170,9 +152,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<FlightStatusHistory>> GetFlightStatusHistoryAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryAsync<FlightStatusHistory>(
+            var result = await _unitOfWork.Connection.QueryAsync<FlightStatusHistory>(
                 "sp_GetFlightStatusHistory",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure

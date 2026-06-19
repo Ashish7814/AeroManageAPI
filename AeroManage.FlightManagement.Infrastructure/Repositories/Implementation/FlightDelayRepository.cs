@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,14 +15,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightDelayRepository : IFlightDelayRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightDelayRepository(IConfiguration configuration)
+        public FlightDelayRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<Flight> ReportDelayAsync(
             int flightId,
@@ -30,8 +29,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             string reason,
             int reportedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@DelayType", delayType);
@@ -39,7 +36,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@Reason", reason);
             parameters.Add("@ReportedBy", reportedBy);
 
-            return await connection.QueryFirstOrDefaultAsync<Flight>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Flight>(
                 "sp_ReportFlightDelay",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -48,9 +45,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<FlightDelayReason>> GetFlightDelayHistoryAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryAsync<FlightDelayReason>(
+            return await _unitOfWork.Connection.QueryAsync<FlightDelayReason>(
                 "sp_GetFlightDelayHistory",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure

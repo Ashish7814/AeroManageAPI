@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,14 +15,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightNotificationRepository : IFlightNotificationRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightNotificationRepository(IConfiguration configuration)
+        public FlightNotificationRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<FlightNotification> CreateNotificationAsync(
             int flightId,
@@ -30,8 +29,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             string severity,
             int createdBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@NotificationType", notificationType);
@@ -39,7 +36,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@Severity", severity);
             parameters.Add("@CreatedBy", createdBy);
 
-            return await connection.QueryFirstOrDefaultAsync<FlightNotification>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightNotification>(
                 "sp_CreateFlightNotification",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -48,13 +45,11 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<FlightNotification>> GetFlightNotificationsAsync(int flightId, bool includeResolved)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@IncludeResolved", includeResolved);
 
-            return await connection.QueryAsync<FlightNotification>(
+            return await _unitOfWork.Connection.QueryAsync<FlightNotification>(
                 "sp_GetFlightNotifications",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -63,13 +58,11 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<FlightNotification> ResolveNotificationAsync(int notificationId, int resolvedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@NotificationId", notificationId);
             parameters.Add("@ResolvedBy", resolvedBy);
 
-            return await connection.QueryFirstOrDefaultAsync<FlightNotification>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightNotification>(
                 "sp_ResolveFlightNotification",
                 parameters,
                 commandType: CommandType.StoredProcedure

@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,22 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class AirportRepository : IAirportRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public AirportRepository(IConfiguration configuration)
+        public AirportRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
-        }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Airport> CreateAirportAsync(Airport airport)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@AirportCode", airport.AirportCode);
             parameters.Add("@ICAOCode", airport.ICAOCode);
@@ -41,7 +35,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@Longitude", airport.Longitude);
             parameters.Add("@Timezone", airport.Timezone);
 
-            var result = await connection.QueryFirstOrDefaultAsync<Airport>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Airport>(
                 "sp_CreateAirport",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -52,9 +46,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Airport> GetAirportByIdAsync(int airportId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<Airport>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Airport>(
                 "sp_GetAirportById",
                 new { AirportId = airportId },
                 commandType: CommandType.StoredProcedure
@@ -67,13 +59,11 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             int pageNumber,
             int pageSize)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@PageNumber", pageNumber);
             parameters.Add("@PageSize", pageSize);
 
-            var airports = (await connection.QueryAsync<Airport>(
+            var airports = (await _unitOfWork.Connection.QueryAsync<Airport>(
                 "GetAirports",
                 parameters,
                 commandType: CommandType.StoredProcedure

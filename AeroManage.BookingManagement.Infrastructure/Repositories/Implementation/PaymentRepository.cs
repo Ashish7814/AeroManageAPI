@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,21 +15,13 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class PaymentRepository : IPaymentRepository
     {
-        private readonly string _connectionString;
-        public PaymentRepository(IConfiguration configuration)
+        private readonly IDapperUnitOfWork _unitOfWork;
+        public PaymentRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
-        }
-
         public async Task<Payment> CreatePaymentAsync(Payment payment)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 INSERT INTO Payments (
                     BookingId, PaymentReference, PaymentIntentId, PaymentMethodId,
@@ -40,7 +33,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 );
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
-            var paymentId = await connection.ExecuteScalarAsync<int>(sql, payment);
+            var paymentId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(sql, payment);
             payment.PaymentId = paymentId;
 
             return payment;
@@ -48,45 +41,37 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Payment> GetPaymentByIdAsync(int paymentId)
         {
-            using var connection = CreateConnection();
-
             var sql = "SELECT * FROM Payments WHERE PaymentId = @PaymentId";
 
-            return await connection.QueryFirstOrDefaultAsync<Payment>(sql, new { PaymentId = paymentId });
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Payment>(sql, new { PaymentId = paymentId });
         }
         public async Task<Payment> GetPaymentByBookingIdAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT TOP 1 * 
                 FROM Payments 
                 WHERE BookingId = @BookingId 
                 ORDER BY CreatedAt DESC";
 
-            return await connection.QueryFirstOrDefaultAsync<Payment>(sql, new { BookingId = bookingId });
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Payment>(sql, new { BookingId = bookingId });
         }
 
         public async Task<Payment> GetPaymentByIntentIdAsync(string paymentIntentId)
         {
-            using var connection = CreateConnection();
-
             var sql = "SELECT * FROM Payments WHERE PaymentIntentId = @PaymentIntentId";
 
-            return await connection.QueryFirstOrDefaultAsync<Payment>(sql, new { PaymentIntentId = paymentIntentId });
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Payment>(sql, new { PaymentIntentId = paymentIntentId });
         }
 
         public async Task<bool> UpdatePaymentStatusAsync(int paymentId, string status, DateTime? paymentDate)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE Payments
                 SET PaymentStatus = @Status,
                     PaymentDate = @PaymentDate
                 WHERE PaymentId = @PaymentId";
 
-            var rowsAffected = await connection.ExecuteAsync(sql, new
+            var rowsAffected = await _unitOfWork.Connection.ExecuteAsync(sql, new
             {
                 PaymentId = paymentId,
                 Status = status,
@@ -100,8 +85,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> ProcessRefundAsync(int paymentId, decimal refundAmount, DateTime refundDate, string stripeRefundId, string status)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE Payments
                 SET RefundAmount = @RefundAmount,
@@ -110,7 +93,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     Status = @Status
                 WHERE PaymentId = @PaymentId";
 
-            var rowsAffected = await connection.ExecuteAsync(sql, new
+            var rowsAffected = await _unitOfWork.Connection.ExecuteAsync(sql, new
             {
                 PaymentId = paymentId,
                 RefundAmount = refundAmount,
@@ -128,8 +111,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             int bookingId, int paymentId, decimal refundAmount, decimal cancellationFee,
             string reason, string bankAccount, string bankName, int requestedBy)
         {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_CreateRefundRequest",
                 new
                 {
@@ -148,9 +130,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             return (result.RefundId, result.RefundReference);
         }
 
-        public async Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, IDbConnection connection,
-         IDbTransaction transaction,
-         CancellationToken cancellationToken = default)
+        public async Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, CancellationToken cancellationToken = default)
         {
             //var sql = @"INSERT INTO BookingPricing (...) VALUES (...)";
             //await con.ExecuteAsync(sql, pricing, tx);
@@ -163,8 +143,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 );
                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-            var pricingId = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(sql, pricing, transaction,
+            var pricingId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(sql, pricing, 
                     cancellationToken: cancellationToken));
 
             pricing.PricingId = pricingId;
@@ -173,8 +153,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<decimal> CalculateCancellationFeeAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_CalculateCancellationFee",
                 new { BookingId = bookingId },
                 commandType: CommandType.StoredProcedure

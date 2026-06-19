@@ -13,6 +13,6 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
         Task<FlightDetails> GetFlightDetailsAsync(int flightId);
         Task<SeatAvailability> GetSeatAvailabilityAsync(int flightId, string seatClass);
         Task<bool> ChangeFlightDateAsync(int bookingId, int flightId, DateTime newDate, int changedBy, string reason);
-        Task<bool> AddFlightToBookingAsync(int bookingId, int flightId, int flightSegment, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken = default);
+        Task<bool> AddFlightToBookingAsync(int bookingId, int flightId, int flightSegment, CancellationToken cancellationToken = default);
     }
 }

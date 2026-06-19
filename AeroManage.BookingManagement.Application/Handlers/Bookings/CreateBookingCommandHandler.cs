@@ -353,7 +353,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                         {
                             await _flightDetailsRepo.AddFlightToBookingAsync(
                                 createdBooking.BookingId, flightId, segment++,
-                                connection, transaction, cancellationToken);
+                                 cancellationToken);
                         }
 
                         // 4c. Create passengers and link to booking
@@ -383,7 +383,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                             else
                             {
                                 createdPassenger = await _passengerRepo.CreatePassengerAsync(
-                                   passenger, connection, transaction, cancellationToken);
+                                   passenger, cancellationToken);
                             }
 
                             var bookingPassenger = new BookingPassenger
@@ -400,7 +400,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                             };
 
                             await _passengerRepo.AddPassengerToBookingAsync(
-                                bookingPassenger, connection, transaction, cancellationToken);
+                                bookingPassenger, cancellationToken);
                         }
 
                         // 4d. Create pricing record
@@ -415,13 +415,13 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                         };
 
                         await _paymentRepo.CreatePricingAsync(
-                            pricing, connection, transaction, cancellationToken);
+                            pricing, cancellationToken);
 
                         // 4e. Increment promo code usage (inside same transaction)
                         if (promoCodeId.HasValue)
                         {
                             await _promoCodeRepo.IncrementUsageAsync(
-                                promoCodeId.Value, connection, transaction, cancellationToken);
+                                promoCodeId.Value, cancellationToken);
                         }
 
                         await transaction.CommitAsync(cancellationToken);

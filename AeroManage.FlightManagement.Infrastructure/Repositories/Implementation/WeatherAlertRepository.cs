@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,19 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class WeatherAlertRepository : IWeatherAlertRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public WeatherAlertRepository(IConfiguration configuration)
+        public WeatherAlertRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<WeatherAlert> CreateAlertAsync(WeatherAlert alert)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@AirportId", alert.AirportId);
             parameters.Add("@AlertType", alert.AlertType);
@@ -35,7 +32,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@StartTime", alert.StartTime);
             parameters.Add("@EndTime", alert.EndTime);
 
-            return await connection.QueryFirstOrDefaultAsync<WeatherAlert>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<WeatherAlert>(
                 "sp_CreateWeatherAlert",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -44,9 +41,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<WeatherAlert>> GetActiveAlertsAsync(int? airportId)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryAsync<WeatherAlert>(
+            return await _unitOfWork.Connection.QueryAsync<WeatherAlert>(
                 "sp_GetActiveWeatherAlerts",
                 new { AirportId = airportId },
                 commandType: CommandType.StoredProcedure
@@ -55,9 +50,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<Flight>> GetWeatherImpactedFlightsAsync(int alertId)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryAsync<Flight>(
+            return await _unitOfWork.Connection.QueryAsync<Flight>(
                 "sp_GetWeatherImpactedFlights",
                 new { AlertId = alertId },
                 commandType: CommandType.StoredProcedure
@@ -66,9 +59,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<bool> DeactivateAlertAsync(int alertId)
         {
-            using var connection = CreateConnection();
-
-            var affected = await connection.ExecuteAsync(
+            var affected = await _unitOfWork.Connection.ExecuteAsync(
                 "UPDATE WeatherAlerts SET IsActive = 0 WHERE AlertId = @AlertId",
                 new { AlertId = alertId }
             );

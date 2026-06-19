@@ -1,20 +1,17 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightDetailsRepository : IFlightDetailsRepository
     {
-        public async Task<bool> AddFlightToBookingAsync(int bookingId, int flightId, int flightSegment, IDbConnection connection,
-             IDbTransaction transaction,
-             CancellationToken cancellationToken = default)
+        private readonly IDapperUnitOfWork _unitOfWork;
+
+        public FlightDetailsRepository(IDapperUnitOfWork uow) => _unitOfWork = uow;
+
+        public async Task<bool> AddFlightToBookingAsync(int bookingId, int flightId, int flightSegment, CancellationToken cancellationToken = default)
         {
             //using var connection = CreateConnection();
 
@@ -32,11 +29,11 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     INSERT INTO BookingFlights (BookingId, FlightId, FlightSegment)
                     VALUES (@BookingId, @FlightId, @FlightSegment)";
 
-            var rows = await connection.ExecuteAsync(
-                new CommandDefinition(sql,
-                    new { BookingId = bookingId, FlightId = flightId, FlightSegment = flightSegment },
-                    transaction,
-                    cancellationToken: cancellationToken));
+            var rows = await _unitOfWork.Connection.ExecuteAsync(
+               new CommandDefinition(sql,
+                   new { BookingId = bookingId, FlightId = flightId, FlightSegment = flightSegment },
+                   _unitOfWork.Transaction,
+                   cancellationToken: cancellationToken));
 
             return rows > 0;
         }

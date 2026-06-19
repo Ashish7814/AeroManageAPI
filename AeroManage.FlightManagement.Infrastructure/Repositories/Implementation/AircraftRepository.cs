@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,22 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class AircraftRepository : IAircraftRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public AircraftRepository(IConfiguration configuration)
+        public AircraftRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
-        }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Aircraft> CreateAircraftAsync(Aircraft aircraft)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@RegistrationNumber", aircraft.RegistrationNumber);
             parameters.Add("@AircraftType", aircraft.AircraftType);
@@ -41,7 +35,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@BusinessSeats", aircraft.BusinessSeats);
             parameters.Add("@FirstClassSeats", aircraft.FirstClassSeats);
 
-            var result = await connection.QueryFirstOrDefaultAsync<Aircraft>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Aircraft>(
                 "sp_CreateAircraft",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -52,9 +46,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Aircraft> GetAircraftByIdAsync(int? aircraftId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<Aircraft>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Aircraft>(
                 "sp_GetAircraftById",
                 new { AircraftId = aircraftId },
                 commandType: CommandType.StoredProcedure
@@ -68,14 +60,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             int pageSize,
             string status)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@PageNumber", pageNumber);
             parameters.Add("@PageSize", pageSize);
             parameters.Add("@Status", status);
 
-            var aircraft = (await connection.QueryAsync<Aircraft>(
+            var aircraft = (await _unitOfWork.Connection.QueryAsync<Aircraft>(
                 "sp_GetAllAircraft",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -88,13 +78,11 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Aircraft> UpdateAircraftStatusAsync(int aircraftId, string status)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@AircraftId", aircraftId);
             parameters.Add("@Status", status);
 
-            var result = await connection.QueryFirstOrDefaultAsync<Aircraft>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Aircraft>(
                 "sp_UpdateAircraftStatus",
                 parameters,
                 commandType: CommandType.StoredProcedure

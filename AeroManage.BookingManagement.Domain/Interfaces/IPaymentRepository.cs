@@ -18,7 +18,7 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
         Task<bool> ProcessRefundAsync(int paymentId, decimal refundAmount, DateTime refundDate, string stripeRefundId, string status);
         Task<(int RefundId, string RefundReference)> CreateRefundRequestAsync(int bookingId, int paymentId, decimal refundAmount, decimal cancellationFee,
          string reason, string bankAccount, string bankName, int requestedBy);
-        Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken = default);
+        Task<BookingPricing> CreatePricingAsync(BookingPricing pricing, CancellationToken cancellationToken = default);
         Task<decimal> CalculateCancellationFeeAsync(int bookingId);
     }
 }

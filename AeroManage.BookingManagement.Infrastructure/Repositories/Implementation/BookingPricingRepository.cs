@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,19 +15,15 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class BookingPricingRepository : IBookingPricingRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public BookingPricingRepository(IConfiguration configuration)
+        public BookingPricingRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<BookingPricing> CreatePricingAsync(BookingPricing pricing)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 INSERT INTO BookingPricing (
                     BookingId, BasePrice, TaxAmount, ServiceFee, BaggageFee,
@@ -40,7 +37,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 );
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
-            var pricingId = await connection.ExecuteScalarAsync<int>(sql, pricing);
+            var pricingId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(sql, pricing);
             pricing.PricingId = pricingId;
 
             return pricing;
@@ -48,8 +45,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<BookingPricing> GetPricingByBookingIdAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT 
                     PricingId, BookingId, BasePrice, TaxAmount, ServiceFee,
@@ -58,7 +53,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 FROM BookingPricing
                 WHERE BookingId = @BookingId";
 
-            var pricing = await connection.QueryFirstOrDefaultAsync<BookingPricing>(
+            var pricing = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<BookingPricing>(
                 sql,
                 new { BookingId = bookingId }
             );
@@ -71,14 +66,12 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             List<(string PassengerType, string SeatClass, int ExtraBaggage, bool TravelInsurance)> passengers,
             string promoCode = null)
         {
-            using var connection = CreateConnection();
-
             // Get flight prices
             decimal totalFlightPrice = 0;
 
             foreach (var flightId in flightIds)
             {
-                var flightPrices = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                var flightPrices = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                     "SELECT EconomyPrice, BusinessPrice, FirstClassPrice FROM Flights WHERE FlightId = @FlightId",
                     new { FlightId = flightId }
                 );
@@ -123,8 +116,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> UpdatePricingAsync(BookingPricing pricing)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE BookingPricing
                 SET BasePrice = @BasePrice,
@@ -139,7 +130,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     Currency = @Currency
                 WHERE PricingId = @PricingId";
 
-            var rowsAffected = await connection.ExecuteAsync(sql, pricing);
+            var rowsAffected = await _unitOfWork.Connection.ExecuteAsync(sql, pricing);
 
             return rowsAffected > 0;
         }
@@ -148,8 +139,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-
                 var response = new ClaculatedPrice
                 {
                     Currency = "USD",
@@ -157,7 +146,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 };
 
                 // 1. Get flight base prices
-                var flightPrices = await GetFlightPricesAsync(connection, request.FlightIds);
+                var flightPrices = await GetFlightPricesAsync(request.FlightIds);
                 response.Breakdown.FlightPrices = flightPrices;
 
                 // 2. Calculate passenger pricing with seat class multipliers
@@ -198,7 +187,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 // 6. Apply promo code discount
                 if (!string.IsNullOrEmpty(request.PromoCode))
                 {
-                    var discount = await GetPromoCodeDiscountAsync(connection, request.PromoCode, response.Subtotal);
+                    var discount = await GetPromoCodeDiscountAsync(request.PromoCode, response.Subtotal);
                     response.DiscountAmount = discount;
                     response.PromoCode = request.PromoCode;
                 }
@@ -224,8 +213,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-
                 var parameters = new DynamicParameters();
                 parameters.Add("@UserId", filter.UserId);
                 parameters.Add("@BookingReference", filter.BookingReference);
@@ -237,7 +224,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 parameters.Add("@PageSize", filter.PageSize);
                 parameters.Add("@TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-                var bookings = await connection.QueryAsync<BookingHistory>(
+                var bookings = await _unitOfWork.Connection.QueryAsync<BookingHistory>(
                     "sp_GetBookingHistory",
                     parameters,
                     commandType: CommandType.StoredProcedure
@@ -249,8 +236,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 var bookingList = bookings.ToList();
                 foreach (var booking in bookingList)
                 {
-                    booking.Flights = await GetBookingFlightsAsync(connection, booking.BookingId);
-                    booking.Passengers = await GetBookingPassengersAsync(connection, booking.BookingId);
+                    booking.Flights = await GetBookingFlightsAsync(booking.BookingId);
+                    booking.Passengers = await GetBookingPassengersAsync(booking.BookingId);
                 }
 
                 return (bookingList, totalCount);
@@ -306,14 +293,12 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = new SqlConnection(_connectionString);
-
                 var parameters = new DynamicParameters();
                 parameters.Add("@UserId", userId);
                 parameters.Add("@FromDate", fromDate);
                 parameters.Add("@ToDate", toDate);
 
-                var stats = await connection.QueryFirstOrDefaultAsync<BookingStatistics>(
+                var stats = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<BookingStatistics>(
                     "sp_GetBookingStatistics",
                     parameters,
                     commandType: CommandType.StoredProcedure
@@ -327,7 +312,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             }
         }
 
-        private async Task<List<FlightPrice>> GetFlightPricesAsync(IDbConnection connection, List<int> flightIds)
+        private async Task<List<FlightPrice>> GetFlightPricesAsync(List<int> flightIds)
         {
             const string sql = @"
                 SELECT 
@@ -340,7 +325,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 INNER JOIN Airports dest ON f.DestinationAirportId = dest.AirportId
                 WHERE f.FlightId IN @FlightIds";
 
-            var flights = await connection.QueryAsync<FlightPrice>(sql, new { FlightIds = flightIds });
+            var flights = await _unitOfWork.Connection.QueryAsync<FlightPrice>(sql, new { FlightIds = flightIds });
             return flights.ToList();
         }
 
@@ -377,7 +362,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             };
         }
 
-        private async Task<decimal> GetPromoCodeDiscountAsync(IDbConnection connection, string promoCode, decimal subtotal)
+        private async Task<decimal> GetPromoCodeDiscountAsync(string promoCode, decimal subtotal)
         {
             const string sql = @"
                 SELECT DiscountType, DiscountValue, MaxDiscountAmount
@@ -387,7 +372,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                   AND (ExpiryDate IS NULL OR ExpiryDate >= GETDATE())
                   AND (UsageLimit IS NULL OR UsageCount < UsageLimit)";
 
-            var promo = await connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Code = promoCode });
+            var promo = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Code = promoCode });
 
             if (promo == null) return 0;
 
@@ -423,7 +408,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             return fees;
         }
 
-        private async Task<List<FlightSummary>> GetBookingFlightsAsync(IDbConnection connection, int bookingId)
+        private async Task<List<FlightSummary>> GetBookingFlightsAsync(int bookingId)
         {
             const string sql = @"
                 SELECT 
@@ -441,11 +426,11 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 WHERE bf.BookingId = @BookingId
                 ORDER BY f.DepartureDateTime";
 
-            var flights = await connection.QueryAsync<FlightSummary>(sql, new { BookingId = bookingId });
+            var flights = await _unitOfWork.Connection.QueryAsync<FlightSummary>(sql, new { BookingId = bookingId });
             return flights.ToList();
         }
 
-        private async Task<List<PassengerSummary>> GetBookingPassengersAsync(IDbConnection connection, int bookingId)
+        private async Task<List<PassengerSummary>> GetBookingPassengersAsync(int bookingId)
         {
             const string sql = @"
                 SELECT 
@@ -459,7 +444,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 WHERE p.BookingId = @BookingId
                 ORDER BY p.PassengerId";
 
-            var passengers = await connection.QueryAsync<PassengerSummary>(sql, new { BookingId = bookingId });
+            var passengers = await _unitOfWork.Connection.QueryAsync<PassengerSummary>(sql, new { BookingId = bookingId });
             return passengers.ToList();
         }
 
