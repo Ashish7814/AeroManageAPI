@@ -13,7 +13,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace AeroManage.FlightManagement.Application.Services.Implementation
+namespace AeroManage.FlightManagement.Infrastructure.Services.Implementation
 {
     public class RabbitMQService : IMessageQueueService, IDisposable
     {

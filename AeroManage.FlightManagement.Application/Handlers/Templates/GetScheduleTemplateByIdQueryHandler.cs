@@ -1,7 +1,6 @@
 ﻿using AeroManage.FlightManagement.Application.DTOs;
 using AeroManage.FlightManagement.Application.Mappers;
 using AeroManage.FlightManagement.Application.Queries.FlightSchedule;
-using AeroManage.FlightManagement.Application.Services.Implementation;
 using AeroManage.FlightManagement.Domain.Interfaces;
 using AeroManage.Shared.Constant;
 using AeroManage.Shared.Service.Implementation;

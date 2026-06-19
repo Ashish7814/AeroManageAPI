@@ -341,7 +341,7 @@ namespace AeroManage.BookingManagement.Application.Handlers.Bookings
                     {
                         // 4a. Create booking row
                         var createdBooking = await _bookingRepo.CreateBookingAsync(
-                            booking, connection, transaction, cancellationToken);
+                            booking, cancellationToken);
 
                         _logger.LogInformation(
                             "Booking row created. BookingId: {BookingId}, Reference: {BookingReference}",

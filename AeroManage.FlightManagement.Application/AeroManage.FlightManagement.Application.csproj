@@ -16,8 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AeroManage.FlightManagement.Infrastructure\AeroManage.FlightManagement.Infrastructure.csproj" />
-    <ProjectReference Include="..\AeroManage.Infrastructure\AeroManage.Infrastructure.csproj" />
+    <ProjectReference Include="..\AeroManage.FlightManagement.Domain\AeroManage.FlightManagement.Domain.csproj" />
     <ProjectReference Include="..\AeroManage.Shared\AeroManage.Shared.csproj" />
   </ItemGroup>
 
