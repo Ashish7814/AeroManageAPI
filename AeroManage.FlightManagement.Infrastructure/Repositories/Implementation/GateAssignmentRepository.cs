@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,14 +15,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class GateAssignmentRepository : IGateAssignmentRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public GateAssignmentRepository(IConfiguration configuration)
+        public GateAssignmentRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<GateAssignment> AssignGateAsync(
             int flightId,
@@ -30,8 +29,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             DateTime scheduledTime,
             int assignedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@GateNumber", gateNumber);
@@ -39,7 +36,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@ScheduledTime", scheduledTime);
             parameters.Add("@AssignedBy", assignedBy);
 
-            return await connection.QueryFirstOrDefaultAsync<GateAssignment>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<GateAssignment>(
                 "sp_AssignGate",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -53,8 +50,6 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             string reason,
             int changedBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@FlightId", flightId);
             parameters.Add("@NewGateNumber", newGateNumber);
@@ -62,7 +57,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@Reason", reason);
             parameters.Add("@ChangedBy", changedBy);
 
-            return await connection.QueryFirstOrDefaultAsync<Flight>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Flight>(
                 "sp_ChangeFlightGate",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -71,9 +66,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<IEnumerable<GateAssignment>> GetFlightGateAssignmentsAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryAsync<GateAssignment>(
+            return await _unitOfWork.Connection.QueryAsync<GateAssignment>(
                 "SELECT * FROM GateAssignments WHERE FlightId = @FlightId ORDER BY AssignedAt DESC",
                 new { FlightId = flightId }
             );

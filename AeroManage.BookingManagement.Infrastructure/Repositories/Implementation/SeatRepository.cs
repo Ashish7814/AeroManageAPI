@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -15,25 +16,18 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class SeatRepository : ISeatRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
         private readonly ILogger<SeatRepository> _logger;
 
-        public SeatRepository(IConfiguration configuration, ILogger<SeatRepository> logger)
+        public SeatRepository(IDapperUnitOfWork unitOfWork, ILogger<SeatRepository> logger)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
             _logger = logger;
-        }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
         }
 
         public async Task<IEnumerable<Seat>> GetFlightSeatsAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
-            var seats = await connection.QueryAsync<Seat>(
+            var seats = await _unitOfWork.Connection.QueryAsync<Seat>(
                 "sp_GetFlightSeats",
                 new { FlightId = flightId },
                 commandType: CommandType.StoredProcedure
@@ -46,23 +40,19 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Seat> GetSeatByIdAsync(int seatId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT SeatId, AircraftId, SeatNumber, SeatClass, SeatType,
                        IsAvailable, IsExitRow, ExtraLegroom, Price, CreatedAt
                 FROM Seats
                 WHERE SeatId = @SeatId";
 
-            return await connection.QueryFirstOrDefaultAsync<Seat>(sql, new { SeatId = seatId });
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Seat>(sql, new { SeatId = seatId });
         }
 
         // ==================== GET SEAT BY NUMBER ====================
 
         public async Task<Seat> GetSeatByNumberAsync(int flightId, string seatNumber)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT s.SeatId, s.AircraftId, s.SeatNumber, s.SeatClass, s.SeatType,
                        s.IsAvailable, s.IsExitRow, s.ExtraLegroom, s.Price
@@ -71,7 +61,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 WHERE f.FlightId = @FlightId
                   AND s.SeatNumber = @SeatNumber";
 
-            return await connection.QueryFirstOrDefaultAsync<Seat>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Seat>(
                 sql, new { FlightId = flightId, SeatNumber = seatNumber }
             );
         }
@@ -80,8 +70,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<IEnumerable<Seat>> GetAvailableSeatsByClassAsync(int flightId, string seatClass)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT s.SeatId, s.AircraftId, s.SeatNumber, s.SeatClass, s.SeatType,
                        s.IsAvailable, s.IsExitRow, s.ExtraLegroom, s.Price
@@ -98,7 +86,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                   )
                 ORDER BY s.SeatNumber";
 
-            return await connection.QueryAsync<Seat>(
+            return await _unitOfWork.Connection.QueryAsync<Seat>(
                 sql, new { FlightId = flightId, SeatClass = seatClass }
             );
         }
@@ -108,9 +96,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         public async Task<SeatReservation> ReserveSeatAsync(
             int flightId, int seatId, int bookingPassengerId, int holdMinutes)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_ReserveSeat",
                 new
                 {
@@ -143,9 +129,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> ConfirmSeatReservationsAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_ConfirmSeatReservations",
                 new { BookingId = bookingId },
                 commandType: CommandType.StoredProcedure
@@ -162,15 +146,13 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> ReleaseSeatReservationAsync(int reservationId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE SeatReservations
                 SET ReservationStatus = 'Released'
                 WHERE ReservationId = @ReservationId
                   AND ReservationStatus IN ('Reserved', 'Hold')";
 
-            var rows = await connection.ExecuteAsync(sql, new { ReservationId = reservationId });
+            var rows = await _unitOfWork.Connection.ExecuteAsync(sql, new { ReservationId = reservationId });
 
             return rows > 0;
         }
@@ -179,9 +161,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> ReleaseExpiredReservationsAsync()
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_ReleaseExpiredReservations",
                 commandType: CommandType.StoredProcedure
             );
@@ -197,8 +177,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> IsSeatAvailableAsync(int flightId, int seatId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT CASE
                     WHEN EXISTS (
@@ -214,7 +192,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     ELSE 0
                 END AS IsAvailable";
 
-            var isAvailable = await connection.ExecuteScalarAsync<int>(
+            var isAvailable = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                 sql, new { FlightId = flightId, SeatId = seatId }
             );
 
@@ -225,8 +203,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<IEnumerable<Seat>> GetSeatMapAsync(int flightId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT
                     s.SeatId,
@@ -249,14 +225,13 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 WHERE f.FlightId = @FlightId
                 ORDER BY s.SeatClass, s.SeatNumber";
 
-            return await connection.QueryAsync<Seat>(
+            return await _unitOfWork.Connection.QueryAsync<Seat>(
                 sql, new { FlightId = flightId }
             );
         }
         public async Task<bool> ChangeSeatAsync(int bookingPassengerId, int flightId, string newSeat, int changedBy)
         {
-            using var connection = CreateConnection();
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_ChangeSeat",
                 new
                 {
@@ -275,8 +250,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = CreateConnection();
-                var results = await connection.QueryAsync<dynamic>(
+                var results = await _unitOfWork.Connection.QueryAsync<dynamic>(
                     "sp_GetSeatAvailability",
                     new { FlightId = flightId, SeatClass = seatClass },
                     commandType: CommandType.StoredProcedure

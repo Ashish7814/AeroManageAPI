@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,20 +15,16 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class PromoCodeRepository : IPromoCodeRepository
     {
-        private readonly string _connectionString;
-
-        public PromoCodeRepository(IConfiguration configuration)
+        private readonly IDapperUnitOfWork _unitOfWork;
+        public PromoCodeRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
 
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<PromoCode> GetPromoCodeByCodeAsync(string code)
         {
-            using var connection = CreateConnection();
-
-            var promoCode = await connection.QueryFirstOrDefaultAsync<PromoCode>(
+            var promoCode = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<PromoCode>(
                 "sp_GetPromoCodeByCode",
                 new { Code = code },
                 commandType: CommandType.StoredProcedure
@@ -38,8 +35,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<PromoCode> ValidatePromoCodeAsync(string code, decimal bookingAmount, CancellationToken cancellationToken = default)
         {
-            using var connection = CreateConnection();
-
             //var promoCode = await connection.QueryFirstOrDefaultAsync<PromoCode>(
             //    "sp_ValidatePromoCode",
             //    new { Code = code, BookingAmount = bookingAmount },
@@ -47,7 +42,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
             //);
 
             //return promoCode;
-            return await connection.QueryFirstOrDefaultAsync<PromoCode>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<PromoCode>(
                new CommandDefinition(
                    "sp_ValidatePromoCode",
                    new { Code = code, BookingAmount = bookingAmount },
@@ -55,16 +50,12 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                    cancellationToken: cancellationToken));
         }
 
-        public async Task<bool> IncrementUsageAsync(int promoCodeId,
-            IDbConnection connection,
-            IDbTransaction transaction,
-            CancellationToken cancellationToken = default)
+        public async Task<bool> IncrementUsageAsync(int promoCodeId, CancellationToken cancellationToken = default)
         {
-            var result = await connection.ExecuteScalarAsync<int>(
+            var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
               new CommandDefinition(
                   "sp_IncrementPromoCodeUsage",
                   new { PromoCodeId = promoCodeId },
-                  transaction,
                   commandType: CommandType.StoredProcedure,
                   cancellationToken: cancellationToken));
 
@@ -73,9 +64,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<IEnumerable<PromoCode>> GetActivePromoCodesAsync()
         {
-            using var connection = CreateConnection();
-
-            var promoCodes = await connection.QueryAsync<PromoCode>(
+            var promoCodes = await _unitOfWork.Connection.QueryAsync<PromoCode>(
                 "sp_GetActivePromoCodes",
                 commandType: CommandType.StoredProcedure
             );
@@ -85,9 +74,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<int> CreatePromoCodeAsync(PromoCode promoCode)
         {
-            using var connection = CreateConnection();
-
-            var promoCodeId = await connection.ExecuteScalarAsync<int>(
+            var promoCodeId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                 "sp_CreatePromoCode",
                 new
                 {
@@ -108,9 +95,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> UpdatePromoCodeAsync(PromoCode promoCode)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.ExecuteScalarAsync<int>(
+            var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                 "sp_UpdatePromoCode",
                 new
                 {
@@ -132,9 +117,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> DeactivatePromoCodeAsync(int promoCodeId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.ExecuteScalarAsync<int>(
+            var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                 "sp_DeactivatePromoCode",
                 new { PromoCodeId = promoCodeId },
                 commandType: CommandType.StoredProcedure

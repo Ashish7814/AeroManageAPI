@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,19 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class FlightScheduleTemplateRepository : IFlightScheduleTemplateRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public FlightScheduleTemplateRepository(IConfiguration configuration)
+        public FlightScheduleTemplateRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        private IDbConnection CreateConnection() => new SqlConnection(_connectionString);
 
         public async Task<FlightScheduleTemplate> CreateTemplateAsync(FlightScheduleTemplate template, int createdBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@TemplateName", template.TemplateName);
             parameters.Add("@FlightNumberPrefix", template.FlightNumberPrefix);
@@ -44,7 +41,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             //parameters.Add("@FirstClassPrice", template.FirstClassPrice);
             parameters.Add("@CreatedBy", createdBy);
 
-            return await connection.QueryFirstOrDefaultAsync<FlightScheduleTemplate>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightScheduleTemplate>(
                 "sp_CreateFlightScheduleTemplate",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -53,9 +50,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<FlightScheduleTemplate> GetTemplateByIdAsync(int templateId)
         {
-            using var connection = CreateConnection();
-
-            return await connection.QueryFirstOrDefaultAsync<FlightScheduleTemplate>(
+            return await _unitOfWork.Connection.QueryFirstOrDefaultAsync<FlightScheduleTemplate>(
                 "SELECT * FROM FlightScheduleTemplates WHERE TemplateId = @TemplateId",
                 new { TemplateId = templateId }
             );
@@ -66,14 +61,12 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             int pageSize,
             bool? isActive)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@PageNumber", pageNumber);
             parameters.Add("@PageSize", pageSize);
             parameters.Add("@IsActive", isActive);
 
-            var templates = (await connection.QueryAsync<FlightScheduleTemplate>(
+            var templates = (await _unitOfWork.Connection.QueryAsync<FlightScheduleTemplate>(
                 "sp_GetAllScheduleTemplates",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -86,15 +79,13 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<int> GenerateFlightsFromTemplateAsync(int templateId, DateTime fromDate, DateTime toDate, int createdBy)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@TemplateId", templateId);
             parameters.Add("@GenerateFromDate", fromDate);
             parameters.Add("@GenerateToDate", toDate);
             parameters.Add("@CreatedBy", createdBy);
 
-            var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<dynamic>(
                 "sp_GenerateFlightsFromTemplate",
                 parameters,
                 commandType: CommandType.StoredProcedure,
@@ -106,9 +97,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<bool> DeactivateTemplateAsync(int templateId)
         {
-            using var connection = CreateConnection();
-
-            var affected = await connection.ExecuteAsync(
+            var affected = await _unitOfWork.Connection.ExecuteAsync(
                 "UPDATE FlightScheduleTemplates SET IsActive = 0 WHERE TemplateId = @TemplateId",
                 new { TemplateId = templateId }
             );

@@ -12,7 +12,7 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
     {
         Task<PromoCode> GetPromoCodeByCodeAsync(string code);
         Task<PromoCode> ValidatePromoCodeAsync(string code, decimal bookingAmount, CancellationToken cancellationToken);
-        Task<bool> IncrementUsageAsync(int promoCodeId, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken);
+        Task<bool> IncrementUsageAsync(int promoCodeId, CancellationToken cancellationToken);
         Task<IEnumerable<PromoCode>> GetActivePromoCodesAsync();
         Task<int> CreatePromoCodeAsync(PromoCode promoCode);
         Task<bool> UpdatePromoCodeAsync(PromoCode promoCode);

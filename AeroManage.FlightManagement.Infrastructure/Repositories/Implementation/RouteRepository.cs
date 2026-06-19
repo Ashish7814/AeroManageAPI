@@ -1,5 +1,6 @@
 ﻿using AeroManage.FlightManagement.Domain.Entities;
 using AeroManage.FlightManagement.Domain.Interfaces;
+using AeroManage.FlightManagement.Infrastructure.Repositories.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -14,22 +15,15 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 {
     public class RouteRepository : IRouteRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public RouteRepository(IConfiguration configuration)
+        public RouteRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
-        }
-
-        private IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Route> CreateRouteAsync(Route route)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@RouteCode", route.RouteCode);
             parameters.Add("@OriginAirportId", route.OriginAirportId);
@@ -37,7 +31,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             parameters.Add("@Distance", route.Distance);
             parameters.Add("@EstimatedDuration", route.EstimatedDuration);
 
-            var result = await connection.QueryFirstOrDefaultAsync<Route>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Route>(
                 "sp_CreateRoute",
                 parameters,
                 commandType: CommandType.StoredProcedure
@@ -48,9 +42,7 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
 
         public async Task<Route> GetRouteByIdAsync(int routeId)
         {
-            using var connection = CreateConnection();
-
-            var result = await connection.QueryFirstOrDefaultAsync<Route>(
+            var result = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Route>(
                 "sp_GetRouteById",
                 new { RouteId = routeId },
                 commandType: CommandType.StoredProcedure
@@ -63,13 +55,11 @@ namespace AeroManage.FlightManagement.Infrastructure.Repositories.Implementation
             int pageNumber,
             int pageSize)
         {
-            using var connection = CreateConnection();
-
             var parameters = new DynamicParameters();
             parameters.Add("@PageNumber", pageNumber);
             parameters.Add("@PageSize", pageSize);
 
-            var routes = (await connection.QueryAsync<Route>(
+            var routes = (await _unitOfWork.Connection.QueryAsync<Route>(
                 "sp_GetAllRoutes",
                 parameters,
                 commandType: CommandType.StoredProcedure
