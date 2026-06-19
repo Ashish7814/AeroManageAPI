@@ -10,10 +10,6 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
 {
     public interface IBookingRepository
     {
-        IDbConnection CreateConnection();
-       
-       
-    
         Task<bool> AddMealPreferenceAsync(int bookingPassengerId, string mealType, string instructions);
         Task<bool> AddSpecialAssistanceAsync(int bookingPassengerId, string types, string details);
         Task<decimal> AddBookingAddonAsync(int bookingPassengerId, int extraBaggage, bool travelInsurance, bool priorityBoarding, bool loungeAccess);
@@ -21,7 +17,7 @@ namespace AeroManage.BookingManagement.Domain.Interfaces
         
         //Task<bool> UpdatePassengerDetailsAsync(int passengerId, string email, string phone, string passport, DateTime? expiry);     
         
-        Task<Booking> CreateBookingAsync(Booking booking, IDbConnection connection, IDbTransaction transaction, CancellationToken cancellationToken = default);
+        Task<Booking> CreateBookingAsync(Booking booking, CancellationToken cancellationToken = default);
         Task<Booking> GetBookingByIdAsync(int bookingId);
         Task<Booking> GetBookingByReferenceAsync(string bookingReference);
         Task<Booking> GetBookingByPNRAsync(string pnr);

@@ -1,5 +1,6 @@
 ﻿using AeroManage.BookingManagement.Domain.Entities;
 using AeroManage.BookingManagement.Domain.Interfaces;
+using AeroManage.BookingManagement.Infrastructure.Repositories.Interfaces;
 using AeroManage.Shared.DTos;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -15,97 +16,17 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 {
     public class BookingRepository : IBookingRepository
     {
-        private readonly string _connectionString;
+        private readonly IDapperUnitOfWork _unitOfWork;
 
-        public BookingRepository(IConfiguration configuration)
+        public BookingRepository(IDapperUnitOfWork unitOfWork)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _unitOfWork = unitOfWork;
         }
-
-        public IDbConnection CreateConnection()
-        {
-            return new SqlConnection(_connectionString);
-        }
-
-        public async Task<List<CalendarFare>> GetCalendarFaresAsync(
-            int originId, int destId, DateTime start, DateTime end, string seatClass)
-        {
-            try
-            {
-                using var connection = CreateConnection();
-                var results = await connection.QueryAsync<CalendarFare>(
-                     "sp_GetCalendarFares",
-                    new
-                    {
-                        OriginAirportId = originId,
-                        DestinationAirportId = destId,
-                        StartDate = start,
-                        EndDate = end,
-                        SeatClass = seatClass
-                    },
-                commandType: CommandType.StoredProcedure
-                );
-                return results.ToList();
-            }
-            catch(Exception ex)
-            {
-                throw;
-            }
-        }
-
-
-
-
-        public async Task<FlightDetails> GetFlightDetailsAsync(int flightId)
-        {
-            try
-            {
-                using var connection = CreateConnection();
-                using var multi = await connection.QueryMultipleAsync(
-                "sp_GetFlightDetails",
-                    new { FlightId = flightId },
-                    commandType: CommandType.StoredProcedure
-                );
-
-                var flight = await multi.ReadFirstOrDefaultAsync<FlightDetails>();
-                if (flight != null)
-                {
-                    flight.Layovers = (await multi.ReadAsync<RouteLayover>()).ToList();
-                }
-
-                return flight;
-            }
-            catch(Exception ex)
-            {
-                throw;
-            }
-        }
-
-        
-        public async Task<List<Airline>> GetActiveAirlinesAsync()
-        {
-            try
-            {
-                using var connection = CreateConnection();
-                var results = await connection.QueryAsync<Airline>(
-                    "sp_GetActiveAirlines",
-                    commandType: CommandType.StoredProcedure
-                );
-
-                return results.ToList();
-            }
-            catch(Exception ex)
-            {
-                throw;
-            }
-        }
-
         public async Task<bool> AddMealPreferenceAsync(int bookingPassengerId, string mealType, string instructions)
         {
             try
             {
-                using var connection = CreateConnection();
-                var result = await connection.ExecuteScalarAsync<int>(
+                var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                     "sp_AddMealPreference",
                     new
                     {
@@ -128,9 +49,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = CreateConnection();
-                var result = await connection.ExecuteScalarAsync<int>(
-                    "sp_AddSpecialAssistance",
+                var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
+                   "sp_AddSpecialAssistance",
                     new
                     {
                         BookingPassengerId = bookingPassengerId,
@@ -153,8 +73,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         {
             try
             {
-                using var connection = CreateConnection();
-                var result = await connection.ExecuteScalarAsync<decimal>(
+                var result = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
                     "sp_AddBookingAddons",
                     new
                     {
@@ -177,8 +96,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<BookingSummary> GetBookingSummaryAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-            using var multi = await connection.QueryMultipleAsync(
+            var multi = await _unitOfWork.Connection.QueryMultipleAsync(
                 "sp_GetBookingSummary",
                 new { BookingId = bookingId },
                 commandType: CommandType.StoredProcedure
@@ -205,7 +123,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
            {
                try
                {
-                   using var connection = CreateConnection();
+                   using var connection = _unitOfWork.BeginAsync();
                    using var multi = await connection.QueryMultipleAsync(
                        "sp_GetBookingSummary",
                        new { BookingId = bookingId },
@@ -247,12 +165,12 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                    throw;
                }
            }*/
-
+/*
         public async Task<bool> ChangeFlightDateAsync(int bookingId, int flightId, DateTime newDate, int changedBy, string reason)
         {
             try
             {
-                using var connection = CreateConnection();
+                using var connection = _unitOfWork.BeginAsync();
                 var result = await connection.QueryFirstOrDefaultAsync<dynamic>(
                     "sp_ChangeFlightDate",
                     new
@@ -277,7 +195,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         public async Task<bool> UpdatePassengerDetailsAsync(int passengerId, string email, string phone,
             string passport, DateTime? expiry)
         {
-            using var connection = CreateConnection();
+            using var connection = _unitOfWork.BeginAsync();
             var result = await connection.ExecuteScalarAsync<int>(
                 "sp_UpdatePassengerDetails",
                 new
@@ -301,11 +219,11 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
        
 
        
-
+*/
 
         //public async Task<Booking> CreateBookingAsync(Booking booking, )
         //{
-        //    using var connection = CreateConnection();
+        //    using var connection = _unitOfWork.BeginAsync();
 
         //    var sql = @"
         //        INSERT INTO Bookings (
@@ -327,8 +245,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Booking> CreateBookingAsync(
             Booking booking,
-            IDbConnection connection,
-            IDbTransaction transaction,
             CancellationToken cancellationToken = default)
         {
             const string sql = @"
@@ -344,8 +260,8 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
         );
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-            var bookingId = await connection.ExecuteScalarAsync<int>(
-                new CommandDefinition(sql, booking, transaction,
+            var bookingId = await _unitOfWork.Connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(sql, booking,
                     cancellationToken: cancellationToken));
 
             booking.BookingId = bookingId;
@@ -354,8 +270,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Booking> GetBookingByIdAsync(int bookingId)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT 
                     BookingId, BookingReference, PNR, UserId, TotalAmount, Currency,
@@ -364,15 +278,13 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 FROM Bookings
                 WHERE BookingId = @BookingId";
 
-            var booking = await connection.QueryFirstOrDefaultAsync<Booking>(sql, new { BookingId = bookingId });
+            var booking = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Booking>(sql, new { BookingId = bookingId });
 
             return booking;
         }
 
         public async Task<Booking> GetBookingByReferenceAsync(string bookingReference)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT 
                     BookingId, BookingReference, PNR, UserId, TotalAmount, Currency,
@@ -381,18 +293,17 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 FROM Bookings
                 WHERE BookingReference = @BookingReference";
 
-            var booking = await connection.QueryFirstOrDefaultAsync<Booking>(sql, new { BookingReference = bookingReference });
+            var booking = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Booking>(sql, new { BookingReference = bookingReference });
 
             return booking;
         }
         public async Task<(string BookingReference, string PNR)> GenerateBookingIdentifiersAsync(CancellationToken cancellationToken = default)
         {
-            using var connection = CreateConnection();
             //using var multi = await connection.QueryMultipleAsync(
             //    "sp_GenerateBookingReference",
             //    commandType: CommandType.StoredProcedure
             //);
-            using var multi = await connection.QueryMultipleAsync(
+            using var multi = await _unitOfWork.Connection.QueryMultipleAsync(
             new CommandDefinition(
                  "sp_GenerateBookingReference",
                  commandType: CommandType.StoredProcedure,
@@ -407,8 +318,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Booking> GetBookingByPNRAsync(string pnr)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 SELECT 
                     BookingId, BookingReference, PNR, UserId, TotalAmount, Currency,
@@ -417,16 +326,15 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 FROM Bookings
                 WHERE PNR = @PNR";
 
-            var booking = await connection.QueryFirstOrDefaultAsync<Booking>(sql, new { PNR = pnr });
+            var booking = await _unitOfWork.Connection.QueryFirstOrDefaultAsync<Booking>(sql, new { PNR = pnr });
 
             return booking;
         }
         public async Task<(IEnumerable<Booking> Bookings, int TotalRecords)> GetUserBookingsAsync(
             int userId, int pageNumber, int pageSize)
         {
-            using var connection = CreateConnection();
 
-            var result = await connection.QueryMultipleAsync(
+            var result = await _unitOfWork.Connection.QueryMultipleAsync(
                 "sp_GetUserBookings",
                 new { UserId = userId, PageNumber = pageNumber, PageSize = pageSize },
                 commandType: CommandType.StoredProcedure
@@ -440,9 +348,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<Booking> ConfirmBookingAsync(int bookingId, string paymentIntentId)
         {
-            using var connection = CreateConnection();
-
-            await connection.ExecuteAsync(
+            await _unitOfWork.Connection.ExecuteAsync(
                 "sp_ConfirmBooking",
                 new { BookingId = bookingId, PaymentIntentId = paymentIntentId },
                 commandType: CommandType.StoredProcedure
@@ -453,8 +359,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> CancelBookingAsync(int bookingId, int cancelledBy, decimal refundAmount)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE Bookings
                 SET BookingStatus = 'Cancelled',
@@ -466,7 +370,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     (SELECT BookingStatus FROM Bookings WHERE BookingId = @BookingId), 
                     'Cancelled', @CancelledBy);";
 
-            var rowsAffected = await connection.ExecuteAsync(sql, new
+            var rowsAffected = await _unitOfWork.Connection.ExecuteAsync(sql, new
             {
                 BookingId = bookingId,
                 CancelledBy = cancelledBy
@@ -477,8 +381,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<bool> UpdateBookingAsync(Booking booking)
         {
-            using var connection = CreateConnection();
-
             var sql = @"
                 UPDATE Bookings
                 SET TotalAmount = @TotalAmount,
@@ -490,7 +392,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                     UpdatedAt = GETDATE()
                 WHERE BookingId = @BookingId";
 
-            var rowsAffected = await connection.ExecuteAsync(sql, booking);
+            var rowsAffected = await _unitOfWork.Connection.ExecuteAsync(sql, booking);
 
             return rowsAffected > 0;
         }
@@ -499,8 +401,6 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
 
         public async Task<IEnumerable<BookingFlight>> GetBookingFlightsAsync(int bookingId, CancellationToken cancellationToken = default)
         {
-            using var connection = CreateConnection();
-
             //var sql = @"
             //    SELECT 
             //        bf.BookingFlightId,
@@ -532,7 +432,7 @@ namespace AeroManage.BookingManagement.Infrastructure.Repositories.Implementatio
                 WHERE  bf.BookingId = @BookingId
                 ORDER  BY bf.FlightSegment";
 
-            return await connection.QueryAsync<BookingFlight>(
+            return await _unitOfWork.Connection.QueryAsync<BookingFlight>(
                 new CommandDefinition(sql, new { BookingId = bookingId },
                     cancellationToken: cancellationToken));
 
